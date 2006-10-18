@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-// Mailsrvd
+// Mailsrv-pop3
 //  (c) Copyright Hyper-Active Systems, 2006.
 //
 // Hyper-Active Systems
@@ -35,14 +35,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include <DevPlus.h>
-
 #include "Defaults.h"
 #include "Logger.h"
-// #include "Server.h"
-#include "SmtpServer.h"
 #include "PopServer.h"
-#include "SenderSession.h"
 
 
 //-----------------------------------------------------------------------------
@@ -52,9 +47,12 @@
 #define CONFIG_DIR "/etc"
 #endif
 
+#ifndef LOG_DIR
+#define LOG_DIR "/var/log/mailsrvd"
+#endif
 
-// ---
-// The main instance is basically a launcher for forked copies that do the different things.   First it loads in the .ini file and determines what to fork.   This way it can also fork multiple servers to listen on multiple ports.
+
+
 
 // Todo.  Need to add this information into the config file.
 
