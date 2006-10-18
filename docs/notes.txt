@@ -1,0 +1,13 @@
+MailServer
+
+This is an open-source implementation of our mail-server which includes smtp receiver and delivery as well as pop3.   In addition it includes the reverse delivery extentions we have developed to assist with avoiding unwanted spam.
+
+About the extentions.
+
+One of the biggest problems with spam today, is that it is very easy to use fake addresses and hosts.  There are several initiatives out there that try to ensure that when an email says it is coming from @test.com it really is coming from @test.com.  The problem with these initiatives is that it requires a significant amount of extra administrative effort to maintain.
+
+The extentions that we propose and include in this mail server suite, does not require any additional administrative effort.  It is simple by design.  It is backward compatible with existing smtp protocols.  But if the email sender and receiver have the extentions then the sender will connect to the server as usual, but instead of doing a DATA command, it will do a SOURCE command which includes a 32 char identifier.   The server would then store that email as partially received.  Every so many seconds it would go thru its database for a list of hosts it needs to connect to.  It would then get a list messages it needs to get from each server.   It would then connect to the sending server using the mx record for the domain.  It will do the usual HELO stuff, but with then do a GET command for each 32char identifier.  The GET command will work identicle to the DATA that would normally be received.   
+
+This method does not stop spam, but it is a method that can help reduce the amount of faked emails that are received.  The administrator of the mail server can choose to ignore emails that have not been identified.  But most likely will check the emails more rigorously againsts spam filters.  
+
+If this method was employed by all mail servers, then all emails would have to originate from a server that can provide the contents of the email when the callback occurs.  
