@@ -14,6 +14,7 @@
 //-----------------------------------------------------------------------------
 
 
+#include <stdarg.h>
 #include <stdlib.h>
 #include "Logger.h"
 
@@ -83,3 +84,9 @@ void Logger::SetID(int nID)
 	_lock.Unlock();
 }
 
+
+// close the log so that no other operations will write to it.  Should be in a state as if it was a newly created object.
+void Logger::Close(void)
+{
+	
+}
