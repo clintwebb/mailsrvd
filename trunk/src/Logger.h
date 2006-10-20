@@ -20,9 +20,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <DpLogger.h>
 #include <DpLock.h>
 
-class Logger 
+
+class Logger : public DpLogger
 {
 	private:
 		static DpLock _lock;

@@ -35,13 +35,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include <DpIniFile.h>
-#include <DpMain.h>
-
 #include "Defaults.h"
 #include "Logger.h"
 #include "PopServer.h"
-
 
 
 //-----------------------------------------------------------------------------
@@ -67,9 +63,9 @@
 class theApp : public DpMain
 {
 	private:
-		DpIniFile  *_pIni;
-		Logger     *_pLogger;
-		PopServer  *_pServer;
+		DpIniFile *_pIni;
+		Server **_pServers;
+		int _nOutTimerID;
 
 	public:
 		
@@ -79,8 +75,8 @@ class theApp : public DpMain
 		theApp()
 		{
 			_pIni = NULL;
-			_pServer = NULL;
-			_pLogger = NULL;
+			_pServers = NULL;
+			_nOutTimerID = 0;
 		}
 
 
@@ -91,8 +87,7 @@ class theApp : public DpMain
 		virtual ~theApp()
 		{
 			ASSERT(_pIni == NULL);
-			ASSERT(_pServer == NULL);
-			ASSERT(_pLogger == NULL);
+			ASSERT(_pServers == NULL);
 		}
 
 	protected:
@@ -121,6 +116,70 @@ class theApp : public DpMain
 		}
 
 		
+		//---------------------------------------------------------------------
+		// Check the INI, and if the SMTP module is enabled, then we need to 
+		// fork, and let the SmtpServer object handle it from that moment on.
+		virtual void StartSMTP(void)
+		{
+			Logger log;
+			SmtpServer *pServer;
+			DpTextTools text;
+			char *szPorts;
+			char **szList;
+			int nPort;
+			int i,j,k;
+			
+			ASSERT(_pIni != NULL);
+			
+			if (_pIni->SetGroup("smtp") == false) {
+				log.Log("'smtp' section in config file is missing.\n");
+			}
+			else {
+			
+				if (_pIni->GetValue("ports", &szPorts) == true) {
+					ASSERT(szPorts != NULL);
+					text.Load(szPorts);
+					szList = text.GetWordArray();
+					
+					i=0; j=0;
+					while(szList[i] != NULL) {
+						
+						nPort = atoi(szList[i]);
+						ASSERT(nPort > 0);
+						
+						log.Log("Activating Incoming SMTP Server on port %d.", nPort);
+
+						k = 15;
+						while(k > 0) {
+							pServer = new SmtpServer;
+							ASSERT(pServer != NULL);
+							if (pServer->Listen(nPort) == false) {
+								delete pServer;
+								k--;
+								if (k == 0) { log.Log("Unable to listen on socket %d. Giving up. ", nPort); }
+								else { 
+									log.Log("Unable to listen on socket %d. Will try again in 30 seconds", nPort); 
+									sleep(30);
+								}
+							}
+							else {
+								_pServers = (Server **) realloc(_pServers, sizeof(Server *) * (j+2));
+								ASSERT(_pServers != NULL);
+								_pServers[j] = pServer;
+								j++;
+								_pServers[j] = NULL;
+								k = 0;
+							}
+						}
+						
+						i++;
+					}
+					
+					
+					free(szPorts);
+				}
+			}
+		}
 		
 		
 		//---------------------------------------------------------------------
@@ -188,6 +247,36 @@ class theApp : public DpMain
 		}
 		
 		
+		//---------------------------------------------------------------------
+		// This will setup the part that sends the emails out.  It is not the 
+		// same as our SMTP and POP3 servers, because here we basically setup 
+		// a timer, and that is all.  The timer will fire every so often and 
+		// it will do its work there.
+		virtual void StartOut(void)
+		{
+			DpSqlite3 *pDB;
+			Logger log;
+			
+			log.SetName("StartOut");
+			
+			pDB = new DpSqlite3;
+			ASSERT(pDB != NULL);
+			if (pDB->Open("/data/mail/db/mailsrv.db") == false) {
+				log.Log("Unable to load database.");
+			}
+			else {
+				// All the messages that were incomplete, should now be restarted.
+				log.Log("Resetting outgoing messages that are incomplete");
+				pDB->ExecuteNR("UPDATE Messages SET Incoming=0 WHERE Incoming>1");
+				
+				// start the timer that will fire every 10 seconds.
+				_nOutTimerID = SetTimer(10000);
+				ASSERT(_nOutTimerID > 0);
+			}
+			delete pDB;
+		}
+		
+		
 		
 		//---------------------------------------------------------------------
 		// This is where everything is started up.  So we need to start up data 
@@ -202,29 +291,76 @@ class theApp : public DpMain
 		{
 			Logger log;
 
-			// Create and initialise the logger.
-
 			log.Log("Starting Main Process.");
 			
-			// initialise the randomiser.
 			InitRandom();
 			
-			// Load the configuration... we will use it later.
 			log.Log("Loading Config.");
 			if (LoadConfig() == false) {
 				log.Log("Failed to load config file: %s%s.", CONFIG_DIR, "/mailsrv.conf");
 			}
 			else {
 			
-				// setup and initialise our named-pipes for external integration.
-			
-				// start the actual listening server.
+				StartSMTP(); 
 				StartPop3();
+				StartOut();
 							
 				log.Log("Finished Launching Processes.");
 			}
 		}
 		
+		
+		
+		virtual void OnTimer(int nTimerID) 
+		{
+			DpSqlite3 *pDB;
+			Logger log;
+			DpSqlite3Result *pResult;
+			int nMessageID;
+			SenderSession *pSession;
+			
+			log.SetName("main::OnTimer");
+			
+			ASSERT(_nOutTimerID > 0);
+			ASSERT(nTimerID > 0);
+			
+			if (nTimerID == _nOutTimerID) {
+			
+				log.SetName("main::OnTimer(OUT)");
+				
+				pDB = new DpSqlite3;
+				ASSERT(pDB != NULL);
+				if (pDB->Open("/data/mail/db/mailsrv.db") == false) {
+					log.Log("Unable to load database.");
+				}
+				else {
+			
+					pResult = pDB->Execute("SELECT MessageID FROM Messages WHERE Incoming=0");
+					ASSERT(pResult != NULL);
+					while(pResult->NextRow()) {
+						nMessageID = pResult->GetInt("MessageID");
+						log.Log("Found message to send: %d", nMessageID);
+						ASSERT(nMessageID > 0);
+					
+						pDB->ExecuteNR("UPDATE Messages SET Incoming=2 WHERE MessageID=%d", nMessageID);
+						
+						pSession = new SenderSession;
+						pSession->SendMessage(nMessageID);
+						while (pSession->IsDone() == false) {
+							log.Log("Waiting for outgoing message %d to be sent.", nMessageID);
+							Sleep(2000);
+						}
+						log.Log("Outgoing Message %d done.", nMessageID);
+						delete pSession;
+						
+						Sleep(20);
+					}
+					delete pResult;
+				}
+				delete pDB;
+			}
+		}
+
 		
 		
 		
@@ -237,9 +373,13 @@ class theApp : public DpMain
 			Logger log;
 			int i;
 			
-			if (_pServer != NULL) {
-				delete _pServer;
-				_pServer = NULL;
+			if (_pServers != NULL) {
+				for(i=0; _pServers[i] != NULL; i++) {
+					delete _pServers[i];
+					_pServers[i] = NULL;
+				}
+				free(_pServers);
+				_pServers = NULL;
 			}
 			
 			if (_pIni != NULL) {
@@ -249,7 +389,6 @@ class theApp : public DpMain
 			}
 			
 			log.Log("Shutting Down.");
-			log.Close();
 		}
 
 		
