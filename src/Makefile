@@ -15,36 +15,45 @@
 #
 # makefile
 
-OBJS=Session.o Server.o Logger.o \
-	 SmtpServer.o PopServer.o \
-	 Message.o PopSession.o SenderSession.o
-LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-thread -ldevplus-sqlite
+OBJS_POP3=Session.o Server.o Logger.o \
+	 PopServer.o Message.o PopSession.o \
+	 Main.o
+
+OBJS_SMTP=Session.o Server.o Logger.o \
+	 SmtpServer.o Message.o SenderSession.o \
+	 Main.o
+	 
+LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-sqlite
 
 #CONFIG_DIR="/etc"
 #LOG_DIR="/var/log/mailsrvd"
 
 H_Defaults=Defaults.h
 H_Logger=Logger.h
-H_Session=Session.h $(H_Logger)
-H_Message=Message.h $(H_Session)
-H_PopSession=PopSession.h $(H_Session)
+H_Session=Session.h $(H_Logger) $(H_Defaults)
+H_Message=Message.h $(H_Session) $(H_Defaults)
+H_PopSession=PopSession.h $(H_Session) $(H_Defaults)
 H_Server=Server.h $(H_Session) $(H_Logger)
 H_PopServer=PopServer.h $(H_Server)
 H_SmtpServer=SmtpServer.h $(H_Server)
 H_SenderSession=SenderSession.h $(H_Session)
 H_Sender=Sender.h $(H_SenderSession)
+H_Main=main.h $(H_Defaults) $(H_Logger) $(H_Server)
 
+all: mailsrv-pop3 
+# mailsrv-smtp mailsrv-out
 
-all: mailsrv-pop3 mailsrv-smtp mailsrv-out
+mailsrv-pop3: main-pop3.cpp $(OBJS_POP3) $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_PopServer)  
+	g++ -o $@ main-pop3.cpp $(OBJS_POP3) $(LIBS)
 
-mailsrv-pop3: main-pop3.cpp $(OBJS) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_PopServer)  
-	g++ -o $@ main-pop3.cpp $(OBJS) $(LIBS)
+mailsrv-smtp: main-smtp.cpp $(OBJS_SMTP) $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_SmtpServer)  
+	g++ -o $@ main-smtp.cpp $(OBJS_SMTP) $(LIBS) 
 
-mailsrv-smtp: main-smtp.cpp $(OBJS) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_SmtpServer)  
-	g++ -o $@ main-smtp.cpp $(OBJS) $(LIBS) 
+mailsrv-out: main-out.cpp   $(OBJS_OUT) $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_SmtpServer)  
+	g++ -o $@ main-out.cpp  $(OBJS_OUT) $(H_Main) $(LIBS) 
 
-mailsrv-out: main-out.cpp   $(OBJS) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_SmtpServer)  
-	g++ -o $@ main-out.cpp  $(OBJS) $(LIBS) 
+Main.o: main.cpp $(H_Main) 
+	g++ -Wall -c -o $@ main.cpp
 
 PopServer.o: PopServer.cpp $(H_Server) $(H_PopSession)
 	g++ -Wall -c -o $@ PopServer.cpp
@@ -73,6 +82,6 @@ SenderSession.o: SenderSession.cpp $(H_SenderSession)
 
 
 clean:
-	@-rm $(OBJS)
+	@-rm *.o
 
 

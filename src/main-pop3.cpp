@@ -37,11 +37,12 @@
 
 #include <DpIniFile.h>
 #include <DpMain.h>
+#include <DpTextTools.h>
 
 #include "Defaults.h"
 #include "Logger.h"
 #include "PopServer.h"
-
+#include "main.h"
 
 
 //-----------------------------------------------------------------------------
@@ -58,29 +59,17 @@
 
 
 
-// Todo.  Need to add this information into the config file.
-
-
-// The outgoing emails will be sent using the SMTP system.  The difference is that if a RCPT address is received that is not handled by us, it will only be forwarded on, if the user authenticated.  Without authentication, only addresses we control will be accepted.
-
-
-class theApp : public DpMain
+class theAppPop3 : public theApp
 {
 	private:
-		DpIniFile  *_pIni;
-		Logger     *_pLogger;
-		PopServer  *_pServer;
 
 	public:
 		
 		//---------------------------------------------------------------------
 		// Everything that happens here is done before main(), so we just want 
 		// to initialise our variables.
-		theApp()
+		theAppPop3()
 		{
-			_pIni = NULL;
-			_pServer = NULL;
-			_pLogger = NULL;
 		}
 
 
@@ -88,45 +77,17 @@ class theApp : public DpMain
 		//---------------------------------------------------------------------
 		// The final peice.  We dont actually want to do anything here, so we 
 		// just verify that everything was cleaned up properly.
-		virtual ~theApp()
+		virtual ~theAppPop3()
 		{
-			ASSERT(_pIni == NULL);
-			ASSERT(_pServer == NULL);
-			ASSERT(_pLogger == NULL);
 		}
 
 	protected:
 		
 		
 		//---------------------------------------------------------------------
-		// Load the config file and return a true if we could do it.  Otherwise 
-		// we will return a false.  We dont need to pull out any information 
-		// from the file, we just need to make sure we can load it.
-		virtual bool LoadConfig(void)
-		{
-			bool bLoaded;
-			ASSERT(_pIni == NULL);
-			
-			_pIni = new DpIniFile;
-			if (_pIni->Load(CONFIG_DIR "/mailsrv.conf") == false) {
-				delete _pIni;
-				_pIni = NULL;
-				bLoaded = false;
-			}
-			else {
-				bLoaded = true;
-			}
-			
-			return (bLoaded);
-		}
-
-		
-		
-		
-		//---------------------------------------------------------------------
 		// Check the INI, and if the POP3 module is enabled, then we need to 
 		// let the PopServer object handle it from that moment on.
-		virtual void StartPop3(void)
+		virtual void OnStarted(void)
 		{
 			Logger log;
 			PopServer *pServer;
@@ -154,9 +115,9 @@ class theApp : public DpMain
 						nPort = atoi(szList[i]);
 						ASSERT(nPort > 0);
 						
-						log.Log("Activating Incoming SMTP Server on port %d.", nPort);
+						log.Log("Activating Incoming POP3 Server on port %d.", nPort);
 							
-						k = 15;
+						k = BUSY_SOCKET_TRIES;
 						while(k > 0) {
 							pServer = new PopServer;
 							ASSERT(pServer != NULL);
@@ -166,7 +127,7 @@ class theApp : public DpMain
 								if (k == 0) { log.Log("Unable to listen on socket %d.  Giving Up.", nPort); }
 								else {
 									log.Log("Unable to listen on socket %d.  Will try again in 30 seconds", nPort);
-									sleep(30);
+									sleep(BUSY_SOCKET_PAUSE);
 								}
 							}
 							else {
@@ -190,76 +151,13 @@ class theApp : public DpMain
 		
 		
 		//---------------------------------------------------------------------
-		// This is where everything is started up.  So we need to start up data 
-		// object which creates a connection with the database.  We also start 
-		// the server object which will listen on a parMessageticular port.  Finally, 
-		// we will start up the controller object which checks the database and 
-		// makes the API request to our sms service host.
-		//
-		// Once everything is started, then the main thread will idle while the 
-		// worker threads continue to function.
-		virtual void OnStartup(void)
-		{
-			Logger log;
-
-			// Create and initialise the logger.
-
-			log.Log("Starting Main Process.");
-			
-			// initialise the randomiser.
-			InitRandom();
-			
-			// Load the configuration... we will use it later.
-			log.Log("Loading Config.");
-			if (LoadConfig() == false) {
-				log.Log("Failed to load config file: %s%s.", CONFIG_DIR, "/mailsrv.conf");
-			}
-			else {
-			
-				// setup and initialise our named-pipes for external integration.
-			
-				// start the actual listening server.
-				StartPop3();
-							
-				log.Log("Finished Launching Processes.");
-			}
-		}
-		
-		
-		
-		
-		
-		//---------------------------------------------------------------------
 		// When we need to shutdown the server, this function will be run.  
 		// When this function exits, the main thread will be closed down.
 		virtual void OnShutdown(void)
 		{
-			Logger log;
-			int i;
-			
-			if (_pServer != NULL) {
-				delete _pServer;
-				_pServer = NULL;
-			}
-			
-			if (_pIni != NULL) {
-				log.Log("Deleting INI object.");
-				delete _pIni;
-				_pIni = NULL;
-			}
-			
-			log.Log("Shutting Down.");
-			log.Close();
-		}
-
+			// do anything we need to do to cleanup here.
 		
-		
-		//---------------------------------------------------------------------
-		// If the user or the system wants to shut down the daemon, this 
-		// function will be run.  
-		virtual void OnCtrlBreak(void)
-		{
-			printf("OnCtrlBreak();\n");
+			theApp::OnShutdown();
 		}
 
 } myApp;

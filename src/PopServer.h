@@ -13,35 +13,22 @@
 // 
 //-----------------------------------------------------------------------------
 
-#ifndef __LOGGER_H
-#define __LOGGER_H
+#ifndef __POPSERVER_H
+#define __POPSERVER_H
 
 
-#include <stdio.h>
-#include <string.h>
+#include "Server.h"
 
-#include <DpLogger.h>
-#include <DpLock.h>
-
-
-class Logger : public DpLogger
+class PopServer : public Server 
 {
 	private:
-		static DpLock _lock;
-		char *_szName;
-		int _nID;
 		
 	public:
-		Logger(); 
-		virtual ~Logger();
-		
-		void Log(char *text, ...);
-		void SetName(const char *name);
-		void SetID(int nID);
-		
-		void Close();
+		PopServer(); 
+		virtual ~PopServer();
 		
 	protected:
+		virtual void OnAccept(SOCKET nSocket);
 		
 	private:
 		
