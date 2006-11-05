@@ -1,40 +1,59 @@
 -- Mailsrv
 
+CREATE DATABASE MailSrv;
+USE MailSrv;
+
 CREATE TABLE Domains (
-  DomainID    INTEGER PRIMARY KEY,
-  Name        TEXT,
-  Reject      INTEGER    
+  DomainID    INTEGER UNIQUE AUTO_INCREMENT,
+  Name        VARCHAR(255),
+  Reject      INTEGER,
+  PRIMARY KEY(DomainID)
 );
 
+INSERT INTO Domains (Name, Reject) VALUES ('cjdj.org', 0);
+INSERT INTO Domains (Name, Reject) VALUES ('mysearchbar.com', 0);
+INSERT INTO Domains (Name, Reject) VALUES ('hyper-active.com.au', 0);
+INSERT INTO Domains (Name, Reject) VALUES ('hypersms.com.au', 0);
+INSERT INTO Domains (Name, Reject) VALUES ('onestoprealty.com.au', 0);
 
 CREATE TABLE Users (
-  UserID      INTEGER PRIMARY KEY,
+  UserID      INTEGER UNIQUE AUTO_INCREMENT,
   DomainID    INTEGER,
-  Account     TEXT,
-  Password    TEXT
+  Account     VARCHAR(255) UNIQUE,
+  Password    CHAR(32),
+  PRIMARY KEY(UserID)
 );
 
+INSERT INTO Users (DomainID, Account, Password) VALUES (1, '1.postmaster', NULL);
+INSERT INTO Users (DomainID, Account, Password) VALUES (2, '2.postmaster', NULL);
+INSERT INTO Users (DomainID, Account, Password) VALUES (3, '3.postmaster', NULL);
+INSERT INTO Users (DomainID, Account, Password) VALUES (4, '4.postmaster', NULL);
+INSERT INTO Users (DomainID, Account, Password) VALUES (5, '5.postmaster', NULL);
+
+
 CREATE TABLE Addresses (
-  AddressID   INTEGER PRIMARY KEY,
+  AddressID   INTEGER UNIQUE AUTO_INCREMENT,
   DomainID    INTEGER,
-  Name        TEXT,
-  UserID      INTEGER
+  Name        VARCHAR(255),
+  UserID      INTEGER,
+  PRIMARY KEY(AddressID)
 );
 
 CREATE TABLE Messages (
-  MessageID   INTEGER PRIMARY KEY,
+  MessageID   INTEGER UNIQUE AUTO_INCREMENT,
   UserID      INTEGER,
-  Incoming    INTEGER
+  Incoming    INTEGER,
+  PRIMARY KEY(MessageID)
 );
 
 
 CREATE TABLE Summaries (
   MessageID   INTEGER,
   Date        DATETIME,
-  MsgFrom     TEXT,
+  MsgFrom     VARCHAR(255),
   MsgTo       TEXT,
   MsgCC       TEXT,
-  MsgSubject  TEXT,
+  MsgSubject  VARCHAR(255),
   MsgDate     DATETIME
 );
 
@@ -46,24 +65,26 @@ CREATE TABLE Bodies (
 );
 
 CREATE TABLE Outgoing (
-  MessageID   INTEGER PRIMARY KEY,
+  MessageID   INTEGER UNIQUE AUTO_INCREMENT,
   SendTime    DATETIME,
   Status      INTEGER DEFAULT 0,
-  MsgFrom     TEXT,
-  MsgTo       TEXT
+  MsgFrom     VARCHAR(255),
+  MsgTo       TEXT,
+  PRIMARY KEY(MessageID)
 );
 
 CREATE TABLE DomainCache (
-  CacheID     INTEGER PRIMARY KEY,
-  Domain      TEXT,
+  CacheID     INTEGER UNIQUE AUTO_INCREMENT,
+  Domain      VARCHAR(255),
   Status      INTEGER DEFAULT 0,
   Entries     INTEGER DEFAULT 0,
-  Created     DATETIME
+  Created     DATETIME,
+  PRIMARY KEY(CacheID)
 );
 
 CREATE TABLE DomainCacheEntries (
   CacheID     INTEGER,
-  Server      TEXT,
+  Server      VARCHAR(255),
   Priority    INTEGER
 );
 
