@@ -33,7 +33,7 @@
 
 #include <DpIniFile.h>
 #include <DpMain.h>
-#include <DpDataServer.h>
+#include <DpMySql.h>
 
 #include "Defaults.h"
 #include "Logger.h"
@@ -62,7 +62,7 @@ class theApp : public DpMain
 		DpIniFile	  *_pIni;
 		Logger		  *_pLogger;
 		Server		 **_pServers;
-		DpDataServer  *_pData;
+		DpMySqlDB     *_pData;
 
 	public:
 		

@@ -36,10 +36,10 @@
 
 theApp::theApp()
 {
-	_pIni = NULL;
+	_pIni     = NULL;
 	_pServers = NULL;
-	_pLogger = NULL;
-	_pData = NULL;
+	_pLogger  = NULL;
+	_pData    = NULL;
 }
 
 
@@ -113,13 +113,19 @@ void theApp::OnStartup(void)
 	}
 	else {
 	
+		// We need to connect to the database, so we need to get the details 
+		// from the configuration so that we know what server to connect to, 
+		// and the username and password.
+		
+		
+		
 		// start the data server.
-		// *** should get the db path from the config file.
-		_pData = new DpDataServer;
-		if (_pData->Load("
+// 		// *** should get the db path from the config file.
+// 		_pData = new DpDataServer;
+// 		if (_pData->Load("
 	
 		// setup and initialise our named-pipes for external integration.
-		OnStarted();
+// 		OnStarted();
 	
 		log.Log("Finished Launching Process.");
 	}

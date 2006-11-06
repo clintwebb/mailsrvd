@@ -11,3 +11,15 @@ The extentions that we propose and include in this mail server suite, does not r
 This method does not stop spam, but it is a method that can help reduce the amount of faked emails that are received.  The administrator of the mail server can choose to ignore emails that have not been identified.  But most likely will check the emails more rigorously againsts spam filters.  
 
 If this method was employed by all mail servers, then all emails would have to originate from a server that can provide the contents of the email when the callback occurs.  
+
+Database Choice
+---------------
+
+Originally this software was written to use sqlite as a database to store the email and configuration.  The reason for this choice was that it is basically an embedded database that has no configuration issues.  I am still partial to this solution, however, the issue of scalability comes into the equation and we are forced to look at a more scalable database solution (which is infinately more flexible than putting all the data in files of some sort).
+
+With Mysql, we can setup replication to easily so that we can have a backup server situation.  Additionally, we came against a few problems with sqlite, such as:
+  1.  Bit of a performance problem when trying to retreive more than 50 unread emails at a time.  
+  2.  Unable to provide a simple way of replicating the database to a secondary server.
+  3.  Invalid database handles from time to time.
+  
+

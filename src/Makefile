@@ -23,7 +23,7 @@ OBJS_SMTP=Session.o Server.o Logger.o \
 	 SmtpServer.o Message.o SenderSession.o \
 	 Main.o
 	 
-LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-sqlite
+LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-mysql
 
 #CONFIG_DIR="/etc"
 #LOG_DIR="/var/log/mailsrvd"
