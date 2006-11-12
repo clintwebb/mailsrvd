@@ -30,151 +30,413 @@
 //-----------------------------------------------------------------------------
 
 
+#include <DpIniFile.h>
+#include <DpMain.h>
+#include <DpMySql.h>
 
-#include "main.h"
+#include "Defaults.h"
+#include "Logger.h"
+#include "Server.h"
 
 
-theApp::theApp()
+//-----------------------------------------------------------------------------
+// This value can be provided at compile time, but if not, then the default 
+// here will be used, which should be more than suitable.
+#ifndef CONFIG_DIR
+#define CONFIG_DIR "/etc"
+#endif
+
+#ifndef LOG_DIR
+#define LOG_DIR "/var/log/mailsrvd"
+#endif
+
+
+
+
+class theApp : public DpMain
 {
-	_pIni     = NULL;
-	_pServers = NULL;
-	_pLogger  = NULL;
-	_pData    = NULL;
-}
-
-
-		
-//---------------------------------------------------------------------
-// The final peice.  We dont actually want to do anything here, so we 
-// just verify that everything was cleaned up properly.
-theApp::~theApp()
-{
-	ASSERT(_pIni == NULL);
-	ASSERT(_pServers == NULL);
-	ASSERT(_pLogger == NULL);
-	ASSERT(_pData == NULL);
-}
-
-//---------------------------------------------------------------------
-// Load the config file and return a true if we could do it.  Otherwise 
-// we will return a false.  We dont need to pull out any information 
-// from the file, we just need to make sure we can load it.
-bool theApp::LoadConfig(void)
-{
-	bool bLoaded;
-	ASSERT(_pIni == NULL);
+	private:
 	
-	_pIni = new DpIniFile;
-	if (_pIni->Load(CONFIG_DIR "/mailsrv.conf") == false) {
-		delete _pIni;
-		_pIni = NULL;
-		bLoaded = false;
-	}
-	else {
-		bLoaded = true;
-	}
-	
-	return (bLoaded);
-}
+	protected:
+		DpIniFile	  *_pIni;
+		Logger		  *_pLogger;
+		Server		 **_pServers;	// list of servers.
+		int            _nServers;	// number of servers in the list.
+		DpMySqlDB     *_pData;		// main database connection.
 
+	public:
 		
-		
-		
-		
-		
-//---------------------------------------------------------------------
-// This is where everything is started up.  So we need to start up data 
-// object which creates a connection with the database.  We also start 
-// the server object which will listen on a parMessageticular port.  Finally, 
-// we will start up the controller object which checks the database and 
-// makes the API request to our sms service host.
-//
-// Once everything is started, then the main thread will idle while the 
-// worker threads continue to function.
-void theApp::OnStartup(void)
-{
-	Logger log;
-
-	ASSERT(_pIni == NULL);
-	ASSERT(_pData == NULL);
-
-	// Create and initialise the logger.
-
-	log.Log("Starting Main Process.");
-	
-	// initialise the randomiser.
-	InitRandom();
-	
-	// Load the configuration... we will use it later.
-	log.Log("Loading Config.");
-	if (LoadConfig() == false) {
-		log.Log("Failed to load config file: %s%s.", CONFIG_DIR, "/mailsrv.conf");
-		Shutdown();
-	}
-	else {
-	
-		// We need to connect to the database, so we need to get the details 
-		// from the configuration so that we know what server to connect to, 
-		// and the username and password.
-		
-		
-		
-		// start the data server.
-// 		// *** should get the db path from the config file.
-// 		_pData = new DpDataServer;
-// 		if (_pData->Load("
-	
-		// setup and initialise our named-pipes for external integration.
-// 		OnStarted();
-	
-		log.Log("Finished Launching Process.");
-	}
-}
-
-
-
-
-
-//---------------------------------------------------------------------
-// When we need to shutdown the server, this function will be run.  
-// When this function exits, the main thread will be closed down.
-void theApp::OnShutdown(void)
-{
-	Logger log;
-	int i;
-	
-	if (_pServers != NULL) {
-		for(i=0; _pServers[i] != NULL; i++) {
-			delete _pServers[i];
-			_pServers[i] = NULL;
+		theApp()
+		{
+			_pIni     = NULL;
+			_pServers = NULL;
+			_nServers = 0;
+			_pLogger  = NULL;
+			_pData    = NULL;
 		}
-		_pServers = NULL;
-	}
-	
-	if (_pIni != NULL) {
-		log.Log("Deleting INI object.");
-		delete _pIni;
-		_pIni = NULL;
-	}
-	
-	if (_pData != NULL) {
-		delete _pData;
-		_pData = NULL;
-	}
-	
-	log.Log("Shutting Down.");
-	log.Close();
-}
+		
+		
+		//---------------------------------------------------------------------
+		// The final peice.  We dont actually want to do anything here, so we 
+		// just verify that everything was cleaned up properly.
+		virtual ~theApp()
+		{
+			ASSERT(_pIni == NULL);
+			ASSERT(_pServers == NULL);
+			ASSERT(_pLogger == NULL);
+			ASSERT(_pData == NULL);
+			ASSERT(_nServers == 0);
+		}
+
+
+	protected:
+		
+		//---------------------------------------------------------------------
+		// Load the config file and return a true if we could do it.  Otherwise 
+		// we will return a false.  We dont need to pull out any information 
+		// from the file, we just need to make sure we can load it.
+		bool theApp::LoadConfig(void)
+		{
+			bool bLoaded;
+			ASSERT(_pIni == NULL);
+			ASSERT(_pServers == NULL);
+			ASSERT(_pLogger == NULL);
+			ASSERT(_pData == NULL);
+			ASSERT(_nServers == 0);
+			
+			_pIni = new DpIniFile;
+			if (_pIni->Load(CONFIG_DIR "/mailsrv.conf") == false) {
+				delete _pIni;
+				_pIni = NULL;
+				bLoaded = false;
+			}
+			else {
+				bLoaded = true;
+			}
+			
+			return (bLoaded);
+		}
+		
+		
+		//---------------------------------------------------------------------
+		// Because we have the potential of multiple SMTP and POP3 servers listening on multiple ports, we need to add each instance to our list.
+		void AddServer(Server *pServer) 
+		{
+			ASSERT(pServer != NULL);
+			ASSERT((_pServers == NULL && _nServers == 0) || (_pServers != NULL && _nServers > 0));
+
+			_pServers = (Server **) realloc(_pServers, sizeof(Server *) * (_nServers+1));
+			ASSERT(_pServers != NULL);
+			_pServers[_nServers] = pServer;
+			_nServers++;
+			
+			ASSERT(_pServers != NULL && _nServers > 0);
+		}
+		
+		
+		//---------------------------------------------------------------------
+		// Check the INI, and if the SMTP module is enabled, then we need to 
+		// fork, and let the SmtpServer object handle it from that moment on.
+		virtual void StartSMTP(void)
+		{
+			Logger log;
+			SmtpServer *pServer;
+			DpTextTools text;
+			char *szPorts;
+			char **szList;
+			int nPort;
+			int i,k;
+			
+			ASSERT(_pIni != NULL);
+			
+			if (_pIni->SetGroup("smtp") == false) {
+				log.Log("'smtp' section in config file is missing.\n");
+			}
+			else {
+			
+				if (_pIni->GetValue("ports", &szPorts) == true) {
+					ASSERT(szPorts != NULL);
+					text.Load(szPorts);
+					szList = text.GetWordArray();
+					
+					i=0; 
+					while(szList[i] != NULL) {
+						
+						nPort = atoi(szList[i]);
+						ASSERT(nPort > 0);
+						
+						log.Log("Activating Incoming SMTP Server on port %d.", nPort);
+
+						k = 15;
+						while(k > 0) {
+							pServer = new SmtpServer;
+							ASSERT(pServer != NULL);
+							if (pServer->Listen(nPort) == false) {
+								delete pServer;
+								k--;
+								if (k == 0) { log.Log("Unable to listen on socket %d. Giving up. ", nPort); }
+								else { 
+									log.Log("Unable to listen on socket %d. Will try again in 30 seconds", nPort); 
+									sleep(30);
+								}
+							}
+							else {
+								AddServer(pServer);
+								k = 0;
+							}
+						}
+						
+						i++;
+					}
+					
+					
+					free(szPorts);
+				}
+			}
+		}
+		
+		
+		//---------------------------------------------------------------------
+		// Check the INI, and if the POP3 module is enabled, then we need to 
+		// let the PopServer object handle it from that moment on.
+		virtual void StartPop3(void)
+		{
+			Logger log;
+			PopServer *pServer;
+			DpTextTools text;
+			char *szPorts;
+			char **szList;
+			int nPort;
+			int i,k;
+			
+			ASSERT(_pIni != NULL);
+			
+			if (_pIni->SetGroup("pop3") == false) {
+				log.Log("'pop3' section in config file is missing.\n");
+			}
+			else {
+			
+				if (_pIni->GetValue("ports", &szPorts) == true) {
+					ASSERT(szPorts != NULL);
+					text.Load(szPorts);
+					szList = text.GetWordArray();
+					
+					i=0;
+					while(szList[i] != NULL) {
+						
+						nPort = atoi(szList[i]);
+						ASSERT(nPort > 0);
+						
+						log.Log("Activating Incoming SMTP Server on port %d.", nPort);
+							
+						k = 15;
+						while(k > 0) {
+							pServer = new PopServer;
+							ASSERT(pServer != NULL);
+							if (pServer->Listen(nPort) == false) {
+								delete pServer;
+								k--;
+								if (k == 0) { log.Log("Unable to listen on socket %d.  Giving Up.", nPort); }
+								else {
+									log.Log("Unable to listen on socket %d.  Will try again in 30 seconds", nPort);
+									sleep(30);
+								}
+							}
+							else {
+								AddServer(pServer);
+								k = 0;
+							}
+						}
+						
+						i++;
+					}
+					
+					free(szPorts);
+				}
+			}
+		}
+		
+		
+		//---------------------------------------------------------------------
+		// This will setup the part that sends the emails out.  It is not the 
+		// same as our SMTP and POP3 servers, because here we basically setup 
+		// a timer, and that is all.  The timer will fire every so often and 
+		// it will do its work there.
+		virtual void StartOut(void)
+		{
+			DpSqlite3 *pDB;
+			Logger log;
+			
+			log.SetName("StartOut");
+			
+			pDB = new DpSqlite3;
+			ASSERT(pDB != NULL);
+			if (pDB->Open("/data/mail/db/mailsrv.db") == false) {
+				log.Log("Unable to load database.");
+			}
+			else {
+				// All the messages that were incomplete, should now be restarted.
+				log.Log("Resetting outgoing messages that are incomplete");
+				pDB->ExecuteNR("UPDATE Messages SET Incoming=0 WHERE Incoming>1");
+				
+				// start the timer that will fire every 10 seconds.
+				_nOutTimerID = SetTimer(10000);
+				ASSERT(_nOutTimerID > 0);
+			}
+			delete pDB;
+		}
+		
+		virtual void OnTimer(int nTimerID) 
+		{
+			DpSqlite3 *pDB;
+			Logger log;
+			DpSqlite3Result *pResult;
+			int nMessageID;
+			SenderSession *pSession;
+			
+			log.SetName("main::OnTimer");
+			
+			ASSERT(_nOutTimerID > 0);
+			ASSERT(nTimerID > 0);
+			
+			if (nTimerID == _nOutTimerID) {
+			
+				log.SetName("main::OnTimer(OUT)");
+				
+				pDB = new DpSqlite3;
+				ASSERT(pDB != NULL);
+				if (pDB->Open("/data/mail/db/mailsrv.db") == false) {
+					log.Log("Unable to load database.");
+				}
+				else {
+			
+					pResult = pDB->Execute("SELECT MessageID FROM Messages WHERE Incoming=0");
+					ASSERT(pResult != NULL);
+					while(pResult->NextRow()) {
+						nMessageID = pResult->GetInt("MessageID");
+						log.Log("Found message to send: %d", nMessageID);
+						ASSERT(nMessageID > 0);
+					
+						pDB->ExecuteNR("UPDATE Messages SET Incoming=2 WHERE MessageID=%d", nMessageID);
+						
+						pSession = new SenderSession;
+						pSession->SendMessage(nMessageID);
+						while (pSession->IsDone() == false) {
+							log.Log("Waiting for outgoing message %d to be sent.", nMessageID);
+							Sleep(2000);
+						}
+						log.Log("Outgoing Message %d done.", nMessageID);
+						delete pSession;
+						
+						Sleep(20);
+					}
+					delete pResult;
+				}
+				delete pDB;
+			}
+		}
+		
+		
+
+		//---------------------------------------------------------------------
+		// This is where everything is started up.  So we need to start up data 
+		// object which creates a connection with the database.  We also start 
+		// the server object which will listen on a parMessageticular port.  
+		// Finally, we will start up the controller object which checks the 
+		// database and makes the API request to our sms service host.
+		//
+		// Once everything is started, then the main thread will idle while the 
+		// worker threads continue to function.
+		void theApp::OnStartup(void)
+		{
+			Logger log;
+		
+			ASSERT(_pIni == NULL);
+			ASSERT(_pData == NULL);
+		
+			// Create and initialise the logger.
+		
+			log.Log("Starting Main Process.");
+			
+			// initialise the randomiser.
+			InitRandom();
+			
+			// Load the configuration... we will use it later.
+			log.Log("Loading Config.");
+			if (LoadConfig() == false) {
+				log.Log("Failed to load config file: %s%s.", CONFIG_DIR, "/mailsrv.conf");
+				Shutdown();
+			}
+			else {
+			
+				// We need to connect to the database, so we need to get the details 
+				// from the configuration so that we know what server to connect to, 
+				// and the username and password.
+				
+				
+				
+				
+			
+			
+				log.Log("Finished Launching Process.");
+			}
+		}
+		
+		
+
+
+		//---------------------------------------------------------------------
+		// When we need to shutdown the server, this function will be run.  
+		// When this function exits, the main thread will be closed down.
+		void theApp::OnShutdown(void)
+		{
+			Logger log;
+			int i;
+			
+			if (_pServers != NULL) {
+				for(i=0; _pServers[i] != NULL; i++) {
+					delete _pServers[i];
+					_pServers[i] = NULL;
+				}
+				_pServers = NULL;
+			}
+			
+			if (_pIni != NULL) {
+				log.Log("Deleting INI object.");
+				delete _pIni;
+				_pIni = NULL;
+			}
+			
+			if (_pData != NULL) {
+				delete _pData;
+				_pData = NULL;
+			}
+			
+			log.Log("Shutting Down.");
+			log.Close();
+		}
+		
+		
+		
+		//---------------------------------------------------------------------
+		// If the user or the system wants to shut down the daemon, this 
+		// function will be run.  
+		void theApp::OnCtrlBreak(void)
+		{
+			printf("OnCtrlBreak();\n");
+		}
+		
+
+} myApp;
+
 
 		
 
-//---------------------------------------------------------------------
-// If the user or the system wants to shut down the daemon, this 
-// function will be run.  
-void theApp::OnCtrlBreak(void)
-{
-	printf("OnCtrlBreak();\n");
-}
+
+
+
+
+		
 
 
 

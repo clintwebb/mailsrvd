@@ -15,13 +15,10 @@
 #
 # makefile
 
-OBJS_POP3=Session.o Server.o Logger.o \
-	 PopServer.o Message.o PopSession.o \
+OBJS=Session.o Server.o Logger.o \
+	 PopServer.o SmtpServer.o Message.o PopSession.o \
 	 Main.o
 
-OBJS_SMTP=Session.o Server.o Logger.o \
-	 SmtpServer.o Message.o SenderSession.o \
-	 Main.o
 	 
 LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-mysql
 
@@ -40,17 +37,11 @@ H_SenderSession=SenderSession.h $(H_Session)
 H_Sender=Sender.h $(H_SenderSession)
 H_Main=main.h $(H_Defaults) $(H_Logger) $(H_Server)
 
-all: mailsrv-pop3 
+all: mailsrvd
 # mailsrv-smtp mailsrv-out
 
-mailsrv-pop3: main-pop3.cpp $(OBJS_POP3) $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_PopServer)  
-	g++ -o $@ main-pop3.cpp $(OBJS_POP3) $(LIBS)
-
-mailsrv-smtp: main-smtp.cpp $(OBJS_SMTP) $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_SmtpServer)  
-	g++ -o $@ main-smtp.cpp $(OBJS_SMTP) $(LIBS) 
-
-mailsrv-out: main-out.cpp   $(OBJS_OUT) $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_SmtpServer)  
-	g++ -o $@ main-out.cpp  $(OBJS_OUT) $(H_Main) $(LIBS) 
+mailsrvd: $(OBJS) $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_PopServer)  
+	g++ -o $@ $(OBJS) $(LIBS)
 
 Main.o: main.cpp $(H_Main) 
 	g++ -Wall -c -o $@ main.cpp

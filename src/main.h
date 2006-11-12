@@ -31,53 +31,5 @@
 
 
 
-#include <DpIniFile.h>
-#include <DpMain.h>
-#include <DpMySql.h>
-
-#include "Defaults.h"
-#include "Logger.h"
-#include "Server.h"
-
-
-//-----------------------------------------------------------------------------
-// This value can be provided at compile time, but if not, then the default 
-// here will be used, which should be more than suitable.
-#ifndef CONFIG_DIR
-#define CONFIG_DIR "/etc"
-#endif
-
-#ifndef LOG_DIR
-#define LOG_DIR "/var/log/mailsrvd"
-#endif
-
-
-
-
-class theApp : public DpMain
-{
-	private:
-	
-	protected:
-		DpIniFile	  *_pIni;
-		Logger		  *_pLogger;
-		Server		 **_pServers;
-		DpMySqlDB     *_pData;
-
-	public:
-		
-		theApp();
-		virtual ~theApp();
-
-	protected:
-		
-		virtual bool LoadConfig(void);
-		virtual void OnStartup(void);
-		virtual void OnShutdown(void);
-		virtual void OnCtrlBreak(void);
-
-		virtual void OnStarted(void) = 0;
-} ;
-
 
 
