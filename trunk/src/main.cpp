@@ -30,13 +30,18 @@
 //-----------------------------------------------------------------------------
 
 
+#include <unistd.h>
+
 #include <DpIniFile.h>
 #include <DpMain.h>
 #include <DpMySql.h>
+#include <DpTextTools.h>
 
 #include "Defaults.h"
 #include "Logger.h"
 #include "Server.h"
+#include "SmtpServer.h"
+#include "PopServer.h"
 
 
 //-----------------------------------------------------------------------------
@@ -95,7 +100,7 @@ class theApp : public DpMain
 		// Load the config file and return a true if we could do it.  Otherwise 
 		// we will return a false.  We dont need to pull out any information 
 		// from the file, we just need to make sure we can load it.
-		bool theApp::LoadConfig(void)
+		bool LoadConfig(void)
 		{
 			bool bLoaded;
 			ASSERT(_pIni == NULL);
@@ -139,7 +144,6 @@ class theApp : public DpMain
 		// fork, and let the SmtpServer object handle it from that moment on.
 		virtual void StartSMTP(void)
 		{
-			Logger log;
 			SmtpServer *pServer;
 			DpTextTools text;
 			char *szPorts;
@@ -147,10 +151,10 @@ class theApp : public DpMain
 			int nPort;
 			int i,k;
 			
-			ASSERT(_pIni != NULL);
+			ASSERT(_pIni != NULL && _pLogger != NULL);
 			
 			if (_pIni->SetGroup("smtp") == false) {
-				log.Log("'smtp' section in config file is missing.\n");
+				_pLogger->Log("'smtp' section in config file is missing.\n");
 			}
 			else {
 			
@@ -165,7 +169,7 @@ class theApp : public DpMain
 						nPort = atoi(szList[i]);
 						ASSERT(nPort > 0);
 						
-						log.Log("Activating Incoming SMTP Server on port %d.", nPort);
+						_pLogger->Log("Activating Incoming SMTP Server on port %d.", nPort);
 
 						k = 15;
 						while(k > 0) {
@@ -174,9 +178,9 @@ class theApp : public DpMain
 							if (pServer->Listen(nPort) == false) {
 								delete pServer;
 								k--;
-								if (k == 0) { log.Log("Unable to listen on socket %d. Giving up. ", nPort); }
+								if (k == 0) { _pLogger->Log("Unable to listen on socket %d. Giving up. ", nPort); }
 								else { 
-									log.Log("Unable to listen on socket %d. Will try again in 30 seconds", nPort); 
+									_pLogger->Log("Unable to listen on socket %d. Will try again in 30 seconds", nPort); 
 									sleep(30);
 								}
 							}
@@ -201,7 +205,6 @@ class theApp : public DpMain
 		// let the PopServer object handle it from that moment on.
 		virtual void StartPop3(void)
 		{
-			Logger log;
 			PopServer *pServer;
 			DpTextTools text;
 			char *szPorts;
@@ -209,10 +212,10 @@ class theApp : public DpMain
 			int nPort;
 			int i,k;
 			
-			ASSERT(_pIni != NULL);
+			ASSERT(_pIni != NULL && _pLogger != NULL);
 			
 			if (_pIni->SetGroup("pop3") == false) {
-				log.Log("'pop3' section in config file is missing.\n");
+				_pLogger->Log("'pop3' section in config file is missing.\n");
 			}
 			else {
 			
@@ -227,7 +230,7 @@ class theApp : public DpMain
 						nPort = atoi(szList[i]);
 						ASSERT(nPort > 0);
 						
-						log.Log("Activating Incoming SMTP Server on port %d.", nPort);
+						_pLogger->Log("Activating Incoming POP3 Server on port %d.", nPort);
 							
 						k = 15;
 						while(k > 0) {
@@ -236,9 +239,9 @@ class theApp : public DpMain
 							if (pServer->Listen(nPort) == false) {
 								delete pServer;
 								k--;
-								if (k == 0) { log.Log("Unable to listen on socket %d.  Giving Up.", nPort); }
+								if (k == 0) { _pLogger->Log("Unable to listen on socket %d.  Giving Up.", nPort); }
 								else {
-									log.Log("Unable to listen on socket %d.  Will try again in 30 seconds", nPort);
+									_pLogger->Log("Unable to listen on socket %d.  Will try again in 30 seconds", nPort);
 									sleep(30);
 								}
 							}
@@ -262,7 +265,7 @@ class theApp : public DpMain
 		// same as our SMTP and POP3 servers, because here we basically setup 
 		// a timer, and that is all.  The timer will fire every so often and 
 		// it will do its work there.
-		virtual void StartOut(void)
+/*		virtual void StartOut(void)
 		{
 			DpSqlite3 *pDB;
 			Logger log;
@@ -285,8 +288,10 @@ class theApp : public DpMain
 			}
 			delete pDB;
 		}
+*/
 		
-		virtual void OnTimer(int nTimerID) 
+		
+/*		virtual void OnTimer(int nTimerID) 
 		{
 			DpSqlite3 *pDB;
 			Logger log;
@@ -335,7 +340,7 @@ class theApp : public DpMain
 				delete pDB;
 			}
 		}
-		
+*/		
 		
 
 		//---------------------------------------------------------------------
@@ -347,24 +352,26 @@ class theApp : public DpMain
 		//
 		// Once everything is started, then the main thread will idle while the 
 		// worker threads continue to function.
-		void theApp::OnStartup(void)
+		void OnStartup(void)
 		{
-			Logger log;
+			char *szServer, *szUsername, *szPassword, *szDB;
+			bool bFailed = true;
 		
 			ASSERT(_pIni == NULL);
 			ASSERT(_pData == NULL);
+			ASSERT(_pLogger == NULL);
 		
 			// Create and initialise the logger.
-		
-			log.Log("Starting Main Process.");
+			_pLogger = new Logger;
+			_pLogger->Log("Starting Main Process.");
 			
 			// initialise the randomiser.
 			InitRandom();
 			
 			// Load the configuration... we will use it later.
-			log.Log("Loading Config.");
+			_pLogger->Log("Loading Config.");
 			if (LoadConfig() == false) {
-				log.Log("Failed to load config file: %s%s.", CONFIG_DIR, "/mailsrv.conf");
+				_pLogger->Log("Failed to load config file: %s%s.", CONFIG_DIR, "/mailsrv.conf");
 				Shutdown();
 			}
 			else {
@@ -372,13 +379,40 @@ class theApp : public DpMain
 				// We need to connect to the database, so we need to get the details 
 				// from the configuration so that we know what server to connect to, 
 				// and the username and password.
-				
-				
-				
-				
+				if (_pIni->SetGroup("mailsrvd") == false) {
+					_pLogger->Log("'mailsrvd' section in config file is missing.\n");
+				}
+				else {
 			
-			
-				log.Log("Finished Launching Process.");
+					if (_pIni->GetValue("db_server", &szServer) == true) {
+						if (_pIni->GetValue("db_user", &szUsername) == true) {
+							if (_pIni->GetValue("db_pass", &szPassword) == true) {
+								if (_pIni->GetValue("db_db", &szDB) == true) {
+							
+									_pData = new DpMySqlDB;
+									ASSERT(_pData != NULL);
+									if (_pData->Connect(szServer, szUsername, szPassword, szDB) == true) {
+									
+										_pLogger->Log("Database connected.");
+									
+										StartSMTP();
+										StartPop3();
+									}
+									else {
+										_pLogger->Log("Unable to connect to database");
+									}
+									
+									free(szDB);
+								}
+								free(szPassword);
+							}
+							free(szUsername);
+						}
+						free(szServer);
+					}
+				
+					_pLogger->Log("Finished Launching Process.");
+				}
 			}
 		}
 		
@@ -388,7 +422,7 @@ class theApp : public DpMain
 		//---------------------------------------------------------------------
 		// When we need to shutdown the server, this function will be run.  
 		// When this function exits, the main thread will be closed down.
-		void theApp::OnShutdown(void)
+		void OnShutdown(void)
 		{
 			Logger log;
 			int i;
@@ -402,7 +436,7 @@ class theApp : public DpMain
 			}
 			
 			if (_pIni != NULL) {
-				log.Log("Deleting INI object.");
+				_pLogger->Log("Deleting INI object.");
 				delete _pIni;
 				_pIni = NULL;
 			}
@@ -412,8 +446,10 @@ class theApp : public DpMain
 				_pData = NULL;
 			}
 			
-			log.Log("Shutting Down.");
-			log.Close();
+			_pLogger->Log("Shutting Down.");
+			_pLogger->Close();
+			delete _pLogger;
+			_pLogger = NULL;
 		}
 		
 		
@@ -421,7 +457,7 @@ class theApp : public DpMain
 		//---------------------------------------------------------------------
 		// If the user or the system wants to shut down the daemon, this 
 		// function will be run.  
-		void theApp::OnCtrlBreak(void)
+		void OnCtrlBreak(void)
 		{
 			printf("OnCtrlBreak();\n");
 		}

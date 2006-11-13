@@ -15,8 +15,8 @@
 #
 # makefile
 
-OBJS=Session.o Server.o Logger.o \
-	 PopServer.o SmtpServer.o Message.o PopSession.o \
+OBJS=Session.o Server.o Logger.o PopServer.o \
+	 SmtpServer.o Message.o PopSession.o \
 	 Main.o
 
 	 
@@ -40,10 +40,10 @@ H_Main=main.h $(H_Defaults) $(H_Logger) $(H_Server)
 all: mailsrvd
 # mailsrv-smtp mailsrv-out
 
-mailsrvd: $(OBJS) $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_PopServer)  
+mailsrvd: $(OBJS)
 	g++ -o $@ $(OBJS) $(LIBS)
 
-Main.o: main.cpp $(H_Main) 
+Main.o: main.cpp $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_PopServer)  $(H_SmtpServer)
 	g++ -Wall -c -o $@ main.cpp
 
 PopServer.o: PopServer.cpp $(H_Server) $(H_PopSession)
