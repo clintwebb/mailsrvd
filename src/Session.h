@@ -19,12 +19,13 @@
 
 #include <DpLock.h>
 #include <DpSocket.h>
-#include <DpSqlite3.h>
+#include <DpMySql.h>
 #include <DpDataQueue.h>
 #include <DpThreadObject.h>
 
 #include "Logger.h"
 #include "Defaults.h"
+#include "Data.h"
 
 enum State_e {
 			Starting,
@@ -39,15 +40,15 @@ enum State_e {
 class Session : public DpThreadObject 
 {
 	private:
-		DpLock _lock;
-		DpSocket  *_pSocket;
+		DpLock       _lock;
+		DpSocket    *_pSocket;
 		enum State_e _SessionState;
-		int _nIdleCount;
+		int          _nIdleCount;
 		
 	protected:
-		DpSqlite3  *_pDB;
-		DpDataQueue _Qin, _Qout;
-		Logger _log;
+		Data        *_pData;
+		DpDataQueue  _Qin, _Qout;
+		Logger       _log;
 		
 	public:
 		Session(); 
@@ -73,7 +74,13 @@ class Session : public DpThreadObject
 		virtual void OnIdle(void);
 		virtual void OnBusy(void);
 		
-		virtual void OpenDB(void);
+		virtual void AttachData(Data *pData) {
+		    ASSERT(pData != NULL);
+		    _lock.Lock();
+			ASSERT(_pData == NULL);
+			_pData = pData;
+			_lock.Unlock();
+		}
 		
 		virtual void OnStart(void)			= 0;
 		virtual void OnCommand(char *line)	= 0;

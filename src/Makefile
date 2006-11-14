@@ -17,7 +17,7 @@
 
 OBJS=Session.o Server.o Logger.o PopServer.o \
 	 SmtpServer.o Message.o PopSession.o \
-	 Main.o
+	 Main.o DataModel.o
 
 	 
 LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-mysql
@@ -27,7 +27,8 @@ LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-mys
 
 H_Defaults=Defaults.h
 H_Logger=Logger.h
-H_Session=Session.h $(H_Logger) $(H_Defaults)
+H_DataModel=DataModel.h
+H_Session=Session.h $(H_Logger) $(H_Defaults) $(H_DataModel)
 H_Message=Message.h $(H_Session) $(H_Defaults)
 H_PopSession=PopSession.h $(H_Session) $(H_Defaults)
 H_Server=Server.h $(H_Session) $(H_Logger)
@@ -43,7 +44,7 @@ all: mailsrvd
 mailsrvd: $(OBJS)
 	g++ -o $@ $(OBJS) $(LIBS)
 
-Main.o: main.cpp $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_PopServer)  $(H_SmtpServer)
+Main.o: main.cpp $(H_Main) $(H_Defaults) $(H_Logger) $(H_SenderSession) $(H_PopServer) $(H_SmtpServer) $(H_DataModel)
 	g++ -Wall -c -o $@ main.cpp
 
 PopServer.o: PopServer.cpp $(H_Server) $(H_PopSession)
@@ -70,6 +71,8 @@ PopSession.o: PopSession.cpp $(H_PopSession)
 SenderSession.o: SenderSession.cpp $(H_SenderSession)
 	g++ -Wall -c -o $@ SenderSession.cpp
 
+DataModel.o: DataModel.cpp $(H_DataModel) $(H_Logger)
+	g++ -Wall -c -o $@ DataModel.cpp
 
 
 clean:
