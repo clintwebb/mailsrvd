@@ -18,6 +18,7 @@
 #include <DpBase64.h>
 
 #include "Message.h"
+#include "DataList.h"
 
 
 //-----------------------------------------------------------------------------
@@ -116,10 +117,8 @@ void Message::OnData(char *line)
 	int len;
 	DpBase64 base;
 	char *result;
-	DpMySqlDB *pResult;
-	char *vUser, *vPass;
 	
-	ASSERT(_pDB != NULL);
+	ASSERT(_pData != NULL);
 	
 	if (_Data.auth.bAuthenticating == true) {
 		// we are getting authentication data, so we need to check to see what stage we are in, and validate the information received.
@@ -144,18 +143,7 @@ void Message::OnData(char *line)
 			_Data.auth.szPass[len] = '\0';
 			
 			// now validate the account.
-			pResult = _pDB->Spawn();
-			ASSERT(pResult = NULL);
-			vUser = pResult->Quote(_Data.auth.szUser);
-			vPass = pResult->Quote(_Data.auth.szPass);
-			if (pResult->Execute("SELECT UserID FROM Users WHERE Account='%s' AND Password='%s'", vUser, vPass);
-			ASSERT(pResult != NULL);
-			if(pResult->NextRow()) {
-				 pResult->GetData("UserID", &_Data.auth.nUserID);
-			}
-			delete pResult;
-			free(vUser);
-			free(vPass);
+			_Data.auth.nUserID = _pData->GetUserID(_Data.auth.szUser, _Data.auth.szPass);
 			
 			ASSERT(_Data.auth.nUserID >= 0);
 			if (_Data.auth.nUserID > 0) {
@@ -339,10 +327,10 @@ void Message::ProcessRCPT(char *ptr, int len)
 	char *user, *domain;
 	int i,j;
 	int nDomainID, nReject, nUserID=0;
-	DpSqlite3Result *pResult;
 	bool bFound;
+	DataList *pList;
 
-	ASSERT(_pDB != NULL);
+	ASSERT(_pData != NULL);
 	ASSERT(ptr != NULL);
 	ASSERT(len >= 4);
 	
@@ -383,17 +371,14 @@ void Message::ProcessRCPT(char *ptr, int len)
 		// now we need to verify that this is a domain that we control.
 		
 		
-		ASSERT(_pDB != NULL);
-		nDomainID = nReject = 0; 
-		pResult = _pDB->Execute("SELECT DomainID, Reject FROM Domains WHERE Name LIKE '%q'", domain);
-		ASSERT(pResult != NULL);
-		if(pResult->NextRow()) {
-			nDomainID  = pResult->GetInt("DomainID");
-			nReject    = pResult->GetInt("Reject");
-			_log.Log("DomainID: %d", nDomainID);
-			_log.Log("Reject: %d", nReject);
-		}
-		delete pResult;
+		ASSERT(_pData != NULL);
+		nReject = 0; 
+		nDomainID = _pData->GetDomainID(domain);
+		ASSERT(nDomainID > 0);
+		nReject   = _pData->GetDomainReject(nDomainID);
+		ASSERT(nReject == 0 || nReject == 1);
+		_log.Log("DomainID: %d", nDomainID);
+		_log.Log("Reject: %d", nReject);
 		
 		if (nDomainID == 0) {
 			if (_Data.auth.bAuthenticated == false) {
@@ -425,25 +410,26 @@ void Message::ProcessRCPT(char *ptr, int len)
 			
 			ASSERT(_pDB != NULL);
 			bFound = false;
-			pResult = _pDB->Execute("SELECT UserID FROM Addresses WHERE DomainID=%d AND Name LIKE '%q'", nDomainID, user);
-			ASSERT(pResult != NULL);
-			while(pResult->NextRow()) {
-				nUserID = pResult->GetInt("UserID");
-				AddUser(nUserID);
-				bFound = true;
+			pList = _pData->GetUserFromAddress(nDomainID, user);
+			if (pList != NULL) {
+				while(pList->NextRow()) {
+					nUserID = pList->GetInt("UserID");
+					AddUser(nUserID);
+					bFound = true;
+				}
+				delete pList;
 			}
-			delete pResult;
 			
 			if (bFound == false) {
 				if (nReject == 0) {
-					pResult = _pDB->Execute("SELECT UserID FROM Addresses WHERE DomainID=%d AND  Name='postmaster'", nDomainID);
-					ASSERT(pResult != NULL);
-					if(pResult->NextRow()) {
-						nUserID = pResult->GetInt("UserID");
+					pList = _pData->GetUserFromAddress(nDomainID, "postmaster");
+					ASSERT(pList != NULL) {
+					while(pList->NextRow()) {
+						nUserID = pList->GetInt("UserID");
 						AddUser(nUserID);
 						bFound = true;
 					}
-					delete pResult;
+					delete pList;
 				}
 			}
 			
@@ -561,25 +547,22 @@ void Message::ProcessQUIT(char *ptr, int len)
 // 		then create all the header and body records.
 void Message::SaveMessage(void)
 {
-	DpSqlite3Result *pResult;
 	int i, j, nID;
 	
 	ASSERT(_Data.szBodies != NULL  && _Data.nBodies > 0);
-	ASSERT(_pDB != NULL);
+	ASSERT(_pData != NULL);
 	
 	ASSERT(_Data.nUsers > 0 || _Data.nRemote > 0);
 	for (i=0; i<_Data.nUsers; i++) {
 		ASSERT(_Data.nUserID[i] > 0);
 		
 		// create the message.
-		pResult = _pDB->Execute("INSERT INTO Messages (UserID, Incoming) VALUES (%d, 1)", _Data.nUserID[i]);
-		ASSERT(pResult != NULL);
-		nID = pResult->GetInsertID();
-		delete pResult;
+		nID = _pData->InsertMessage(_Data.nUserID[i]);
 		ASSERT(nID > 0);
 		
 		for (j=0; j<_Data.nBodies; j++) {
 			ASSERT(_Data.szBodies[j] != NULL);
+			_pData->InsertBodyLine(nID, j+1, _Data.szBodies[j]);
 			_pDB->ExecuteNR("INSERT INTO Bodies (MessageID, Line, Body) VALUES (%d, %d, '%q')", nID, j+1, _Data.szBodies[j]);
 		}
 	}

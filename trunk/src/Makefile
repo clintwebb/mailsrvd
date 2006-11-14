@@ -17,7 +17,7 @@
 
 OBJS=Session.o Server.o Logger.o PopServer.o \
 	 SmtpServer.o Message.o PopSession.o \
-	 Main.o DataModel.o
+	 Main.o DataModel.o DataList.o
 
 	 
 LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-mysql
@@ -27,7 +27,8 @@ LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-mys
 
 H_Defaults=Defaults.h
 H_Logger=Logger.h
-H_DataModel=DataModel.h
+H_DataList=DataList.h
+H_DataModel=DataModel.h $(H_DataList)
 H_Session=Session.h $(H_Logger) $(H_Defaults) $(H_DataModel)
 H_Message=Message.h $(H_Session) $(H_Defaults)
 H_PopSession=PopSession.h $(H_Session) $(H_Defaults)
@@ -59,7 +60,7 @@ Server.o: Server.cpp $(H_Server)
 SmtpServer.o: SmtpServer.cpp $(H_SmtpServer) $(H_Message)
 	g++ -Wall -c -o $@ SmtpServer.cpp
 
-Message.o: Message.cpp $(H_Message)
+Message.o: Message.cpp $(H_Message) $(H_DataList)
 	g++ -Wall -c -o $@ Message.cpp 
 
 Session.o: Session.cpp $(H_Session)
@@ -73,6 +74,9 @@ SenderSession.o: SenderSession.cpp $(H_SenderSession)
 
 DataModel.o: DataModel.cpp $(H_DataModel) $(H_Logger)
 	g++ -Wall -c -o $@ DataModel.cpp
+
+DataList.o: DataList.cpp $(H_DataList)
+	g++ -Wall -c -o $@ DataList.cpp
 
 
 clean:
