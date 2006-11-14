@@ -116,7 +116,10 @@ void Message::OnData(char *line)
 	int len;
 	DpBase64 base;
 	char *result;
-	DpSqlite3Result *pResult;
+	DpMySqlDB *pResult;
+	char *vUser, *vPass;
+	
+	ASSERT(_pDB != NULL);
 	
 	if (_Data.auth.bAuthenticating == true) {
 		// we are getting authentication data, so we need to check to see what stage we are in, and validate the information received.
@@ -141,12 +144,18 @@ void Message::OnData(char *line)
 			_Data.auth.szPass[len] = '\0';
 			
 			// now validate the account.
-			pResult = _pDB->Execute("SELECT UserID FROM Users WHERE Account='%q' AND Password='%q'", _Data.auth.szUser, _Data.auth.szPass);
+			pResult = _pDB->Spawn();
+			ASSERT(pResult = NULL);
+			vUser = pResult->Quote(_Data.auth.szUser);
+			vPass = pResult->Quote(_Data.auth.szPass);
+			if (pResult->Execute("SELECT UserID FROM Users WHERE Account='%s' AND Password='%s'", vUser, vPass);
 			ASSERT(pResult != NULL);
 			if(pResult->NextRow()) {
-				_Data.auth.nUserID = pResult->GetInt("UserID");
+				 pResult->GetData("UserID", &_Data.auth.nUserID);
 			}
 			delete pResult;
+			free(vUser);
+			free(vPass);
 			
 			ASSERT(_Data.auth.nUserID >= 0);
 			if (_Data.auth.nUserID > 0) {

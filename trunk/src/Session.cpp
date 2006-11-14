@@ -32,7 +32,7 @@ Session::Session()
 	_lock.Lock();
 	_pSocket = NULL;
 	ChangeState(Starting);
-	_pDB = NULL;
+	_pData = NULL;
 	_nIdleCount = 0;
 	_lock.Unlock();
 }
@@ -57,28 +57,7 @@ Session::~Session()
 		_pSocket = NULL;
 	}
 	
-	if (_pDB != NULL) {
-		_log.Log("~Session() - deleting database object");
-		delete _pDB;
-		_pDB = NULL;
-	}
-	
 	_log.Log("~Session() - End");
-}
-
-
-void Session::OpenDB(void)
-{
-	ASSERT(_pDB == NULL);
-	
-	_log.Log("Creating Database Handler.");
-	_pDB = new DpSqlite3;
-	ASSERT(_pDB != NULL);
-	if (_pDB->Open("/data/mail/db/mailsrv.db") == false) {
-		_log.Log("Unable to load database.");
-		delete _pDB;
-		ChangeState(ForceClose);
-	}
 }
 
 
@@ -114,8 +93,6 @@ void Session::OnThreadRun(void)
 {
 	char *ptr;
 	ChangeState(Started);
-	
-	OpenDB();
 	
 	_log.Log("Ready");
 	
@@ -177,11 +154,6 @@ void Session::OnThreadRun(void)
 					_pSocket = NULL;
 				}
 	
-				if (_pDB != NULL) {
-					delete _pDB;
-					_pDB = NULL;
-				}
-				
 				ChangeState(Done);
 				break;
 				
@@ -195,10 +167,6 @@ void Session::OnThreadRun(void)
 					delete _pSocket;
 					_pSocket = NULL;
 					
-					if (_pDB != NULL) {
-						delete _pDB;
-						_pDB = NULL;
-					}
 					
 					ChangeState(Done);
 					_log.Log("Session Closed");

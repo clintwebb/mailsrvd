@@ -42,6 +42,7 @@
 #include "Server.h"
 #include "SmtpServer.h"
 #include "PopServer.h"
+#include "DataModel.h"
 
 
 //-----------------------------------------------------------------------------
@@ -67,17 +68,17 @@ class theApp : public DpMain
 		Logger		  *_pLogger;
 		Server		 **_pServers;	// list of servers.
 		int            _nServers;	// number of servers in the list.
-		DpMySqlDB     *_pData;		// main database connection.
+		DataModel     *_pData;		// main database interface object.
 
 	public:
 		
 		theApp()
 		{
-			_pIni     = NULL;
-			_pServers = NULL;
-			_nServers = 0;
-			_pLogger  = NULL;
-			_pData    = NULL;
+			_pIni       = NULL;
+			_pServers   = NULL;
+			_nServers   = 0;
+			_pLogger    = NULL;
+			_pDataModel = NULL;
 		}
 		
 		
@@ -89,7 +90,7 @@ class theApp : public DpMain
 			ASSERT(_pIni == NULL);
 			ASSERT(_pServers == NULL);
 			ASSERT(_pLogger == NULL);
-			ASSERT(_pData == NULL);
+			ASSERT(_pDataModel == NULL);
 			ASSERT(_nServers == 0);
 		}
 
@@ -100,20 +101,30 @@ class theApp : public DpMain
 		// Load the config file and return a true if we could do it.  Otherwise 
 		// we will return a false.  We dont need to pull out any information 
 		// from the file, we just need to make sure we can load it.
+		// First we need to check the current directory for the conf file, and 
+		// if it is not there, then we check the CONFIG_DIR.
 		bool LoadConfig(void)
 		{
 			bool bLoaded;
 			ASSERT(_pIni == NULL);
 			ASSERT(_pServers == NULL);
 			ASSERT(_pLogger == NULL);
-			ASSERT(_pData == NULL);
+			ASSERT(_pDataModel == NULL);
 			ASSERT(_nServers == 0);
 			
 			_pIni = new DpIniFile;
-			if (_pIni->Load(CONFIG_DIR "/mailsrv.conf") == false) {
+			if (_pIni->Load("." "/mailsrv.conf") == false) {
 				delete _pIni;
-				_pIni = NULL;
-				bLoaded = false;
+				
+				_pIni = new DpIniFile;
+				if (_pIni->Load(CONFIG_DIR "/mailsrv.conf") == false) {
+					delete _pIni;
+					_pIni = NULL;
+					bLoaded = false;
+				}
+				else {
+					bLoaded = true;
+				}
 			}
 			else {
 				bLoaded = true;
@@ -124,7 +135,10 @@ class theApp : public DpMain
 		
 		
 		//---------------------------------------------------------------------
-		// Because we have the potential of multiple SMTP and POP3 servers listening on multiple ports, we need to add each instance to our list.
+		// Because we have the potential of multiple SMTP and POP3 servers 
+		// listening on multiple ports, we need to add each instance to our 
+		// list.  After adding the server to the list, we will attach the 
+		// database instance to it.
 		void AddServer(Server *pServer) 
 		{
 			ASSERT(pServer != NULL);
@@ -136,6 +150,9 @@ class theApp : public DpMain
 			_nServers++;
 			
 			ASSERT(_pServers != NULL && _nServers > 0);
+			
+			ASSERT(_pData != NULL);
+			pServer->AttachData(_pData);
 		}
 		
 		
@@ -203,7 +220,7 @@ class theApp : public DpMain
 		//---------------------------------------------------------------------
 		// Check the INI, and if the POP3 module is enabled, then we need to 
 		// let the PopServer object handle it from that moment on.
-		virtual void StartPop3(void)
+/*		virtual void StartPop3(void)
 		{
 			PopServer *pServer;
 			DpTextTools text;
@@ -258,7 +275,7 @@ class theApp : public DpMain
 				}
 			}
 		}
-		
+		*/
 		
 		//---------------------------------------------------------------------
 		// This will setup the part that sends the emails out.  It is not the 
@@ -354,15 +371,13 @@ class theApp : public DpMain
 		// worker threads continue to function.
 		void OnStartup(void)
 		{
-			char *szServer, *szUsername, *szPassword, *szDB;
-			bool bFailed = true;
-		
 			ASSERT(_pIni == NULL);
 			ASSERT(_pData == NULL);
 			ASSERT(_pLogger == NULL);
 		
 			// Create and initialise the logger.
 			_pLogger = new Logger;
+			_pLogger->Init();
 			_pLogger->Log("Starting Main Process.");
 			
 			// initialise the randomiser.
@@ -376,42 +391,13 @@ class theApp : public DpMain
 			}
 			else {
 			
-				// We need to connect to the database, so we need to get the details 
-				// from the configuration so that we know what server to connect to, 
-				// and the username and password.
-				if (_pIni->SetGroup("mailsrvd") == false) {
-					_pLogger->Log("'mailsrvd' section in config file is missing.\n");
+				_pData = new Data;
+				if (_pData->Connect(_pIni) == false) {
+					_pLogger->Log("Unable to connect to data store");
+					Shutdown();
 				}
 				else {
-			
-					if (_pIni->GetValue("db_server", &szServer) == true) {
-						if (_pIni->GetValue("db_user", &szUsername) == true) {
-							if (_pIni->GetValue("db_pass", &szPassword) == true) {
-								if (_pIni->GetValue("db_db", &szDB) == true) {
-							
-									_pData = new DpMySqlDB;
-									ASSERT(_pData != NULL);
-									if (_pData->Connect(szServer, szUsername, szPassword, szDB) == true) {
-									
-										_pLogger->Log("Database connected.");
-									
-										StartSMTP();
-										StartPop3();
-									}
-									else {
-										_pLogger->Log("Unable to connect to database");
-									}
-									
-									free(szDB);
-								}
-								free(szPassword);
-							}
-							free(szUsername);
-						}
-						free(szServer);
-					}
-				
-					_pLogger->Log("Finished Launching Process.");
+					StartSMTP;
 				}
 			}
 		}
