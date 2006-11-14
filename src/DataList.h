@@ -12,30 +12,36 @@
 // contact@hyper-active.com.au
 // 
 //-----------------------------------------------------------------------------
+//
+//	This object is used by the DataModel, when it needs to return more than a 
+//	simple value.  It returns rows in a grid, similar to the usual results by 
+//	a dataquery.  Each column is labelled and given a type.  
+//
+//-----------------------------------------------------------------------------
 
-#ifndef __DATAMODEL_H
-#define __DATAMODEL_H
 
-#include <DpLock.h>
-#include <DpIniFile.h>
-#include <DpMySql.h>
+#ifndef __DATALIST_H
+#define __DATALIST_H
 
-class DataModel : public DpLock
+
+class DataList
 {
 	private:
-		DpMySqlDB *_pDB;
+		bool _bComplete;
+		int  _nCurrentRow;
 		
 	protected:
 		
 	public:
-		DataModel(); 
-		virtual ~DataModel();
+		DataList(); 
+		virtual ~DataList();
+		
+		void AddRow();
+		void Complete();
 		
 	protected:
 		
 	private:
-		bool Connect(DpIniFile *pIni);
-		
 };
 
 

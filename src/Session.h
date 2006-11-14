@@ -25,7 +25,7 @@
 
 #include "Logger.h"
 #include "Defaults.h"
-#include "Data.h"
+#include "DataModel.h"
 
 enum State_e {
 			Starting,
@@ -46,7 +46,7 @@ class Session : public DpThreadObject
 		int          _nIdleCount;
 		
 	protected:
-		Data        *_pData;
+		DataModel   *_pData;
 		DpDataQueue  _Qin, _Qout;
 		Logger       _log;
 		
@@ -74,7 +74,7 @@ class Session : public DpThreadObject
 		virtual void OnIdle(void);
 		virtual void OnBusy(void);
 		
-		virtual void AttachData(Data *pData) {
+		virtual void AttachData(DataModel *pData) {
 		    ASSERT(pData != NULL);
 		    _lock.Lock();
 			ASSERT(_pData == NULL);
