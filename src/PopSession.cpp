@@ -170,7 +170,7 @@ void PopSession::ProcessUSER(char *ptr, int len)
 	}
 	else {
 		ASSERT(_Data.szPass == NULL);
-		_Data.szUser = (char *) malloc(len);
+		_Data.szUser = (char *) malloc(len+2);
 		ASSERT(_Data.szUser != NULL);
 		
 		strcpy(_Data.szUser , &ptr[5]);
@@ -197,7 +197,7 @@ void PopSession::ProcessPASS(char *ptr, int len)
 		_Qout.Print("-ERR Bad sequence of commands.\r\n");
 	}
 	else {
-		_Data.szPass = (char *) malloc(len);
+		_Data.szPass = (char *) malloc(len+2);
 		ASSERT(_Data.szPass != NULL);
 		
 		strcpy(_Data.szPass , &ptr[5]);

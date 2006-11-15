@@ -39,11 +39,13 @@ void SmtpServer::OnAccept(SOCKET nSocket)
 	Message *pMsg;
 	
 	ASSERT(nSocket > 0);
-	
 	_log.Log("Connection received on socket %d.", nSocket);
 	pMsg = new Message; 
 	ASSERT(pMsg != NULL);
+	ASSERT(_pData != NULL);
+	pMsg->AttachData(_pData);
 	pMsg->Accept(nSocket);
 	AddSession(pMsg);
+	Sleep(500);
 }
 

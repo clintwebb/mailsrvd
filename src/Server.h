@@ -32,10 +32,10 @@ class Server : public DpServerInterface
 		DpLock _lock;
 		int _nItems;
 		Session **_pList;
-		DataModel *_pData;
 		
 	protected:
 		Logger _log;
+		DataModel *_pData;
 		
 	public:
 		Server(); 

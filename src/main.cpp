@@ -108,7 +108,6 @@ class theApp : public DpMain
 			bool bLoaded;
 			ASSERT(_pIni     == NULL);
 			ASSERT(_pServers == NULL);
-			ASSERT(_pLogger  == NULL);
 			ASSERT(_pData    == NULL);
 			ASSERT(_nServers == 0);
 			

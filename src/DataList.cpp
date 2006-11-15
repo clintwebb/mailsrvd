@@ -22,7 +22,7 @@
 DataList::DataList() 
 {	
 	_bComplete = false;
-	_nCurrentRow = 0;
+	_nCurrentRow = -1;
 	_nRowCount = 0;
 	_pHeaders = NULL;
 	_pRows = NULL;
@@ -49,7 +49,14 @@ void DataList::AddColumn(char *szName)
 {
 	ASSERT(szName != NULL);
 	ASSERT(_bComplete == false);
+	ASSERT(_nRowCount == 0 && _nColumns >= 0);
 	
+	if (_pHeaders == NULL) {
+		_pHeaders = new DataRow;
+	}
+	ASSERT(_pHeaders != NULL);
+	_pHeaders->AddColumn(szName);
+	_nColumns ++;
 }
 
 
@@ -57,7 +64,7 @@ void DataList::AddColumn(char *szName)
 // CJW: Add a new row to the grid.
 void DataList::AddRow()
 {
-	ASSERT((_nCurrentRow == 0 && _nRowCount == 0) || (_nCurrentRow > 0 && _nRowCount > 0));
+	ASSERT(_nCurrentRow < 0 && _nRowCount >= 0);
 	ASSERT(_nColumns > 0);
 	_nRowCount ++;
 	_pRows = (DataRow **) realloc(_pRows, sizeof(DataRow*) * _nRowCount);
@@ -73,6 +80,7 @@ bool DataList::NextRow()
 	bool bValid = false;
 	
 	_nCurrentRow++;
+	ASSERT(_nCurrentRow >= 0 && _nRowCount >= 0);
 	ASSERT(_nCurrentRow <= _nRowCount);
 	if (_nCurrentRow < _nRowCount) {
 		bValid = true;
@@ -91,7 +99,6 @@ void DataList::Complete(void)
 {
 	ASSERT(_bComplete == false);
 	_bComplete = true;
-	_nCurrentRow = 0;
 }	
 
 
@@ -123,13 +130,21 @@ int DataList::GetInt(int nIndex)
 	int nResult = 0;
 	
 	ASSERT(nIndex >= 0);
-	ASSERT(_nCurrentRow < _nRowCount);
+	ASSERT(_nCurrentRow < _nRowCount && _nCurrentRow >= 0);
 	ASSERT(_pRows != NULL);
-	ASSERT(_pRows[nIndex] != NULL);
+	ASSERT(_pRows[_nCurrentRow] != NULL);
 	
-	nResult = _pRows[nIndex]->GetInt(nIndex);
+	nResult = _pRows[_nCurrentRow]->GetInt(nIndex);
 	
 	return(nResult);
 }
 
+
+void DataList::AddData(int nIndex, int nValue)
+{
+	ASSERT(nIndex >= 0);
+	ASSERT(_nCurrentRow < 0 && _nRowCount > 0);
+	ASSERT(nIndex < _nColumns);
+	_pRows[_nRowCount-1]->SetInt(nIndex, nValue);
+}
 

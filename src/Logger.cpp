@@ -16,6 +16,7 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "Logger.h"
 
 //-----------------------------------------------------------------------------
@@ -64,6 +65,8 @@ void Logger::Log(char *text, ...)
 		_lock.Unlock();
 		
 		free(buffer);
+		
+// 		sleep(1);
 	}
 }
 

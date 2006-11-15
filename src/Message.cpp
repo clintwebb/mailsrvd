@@ -367,6 +367,7 @@ void Message::ProcessRCPT(char *ptr, int len)
 		ASSERT(j < len);
 		
 		_log.Log("RCPT TO: %s@%s", user, domain);
+		ASSERT(strlen(user) < 255 && strlen(user) > 0);
 		
 		// now we need to verify that this is a domain that we control.
 		

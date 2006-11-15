@@ -15,14 +15,14 @@
 #
 # makefile
 
-OBJS=Session.o Server.o Logger.o PopServer.o \
+OBJS=Session.o Server.o Logger.o  \
 	 SmtpServer.o Message.o  \
 	 Main.o DataModel.o DataList.o 
 
-# PopSession.o
+# PopSession.o PopServer.o
 
 	 
-LIBS=-lsqlite3 -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-mysql
+LIBS=-lmysqlclient -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-mysql
 
 #CONFIG_DIR="/etc"
 #LOG_DIR="/var/log/mailsrvd"
