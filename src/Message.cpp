@@ -408,7 +408,7 @@ void Message::ProcessRCPT(char *ptr, int len)
 		
 			// now that we know we handle this domain, we need to see if this username exists.
 			
-			ASSERT(_pDB != NULL);
+			ASSERT(_pData != NULL);
 			bFound = false;
 			pList = _pData->GetUserFromAddress(nDomainID, user);
 			if (pList != NULL) {
@@ -423,7 +423,7 @@ void Message::ProcessRCPT(char *ptr, int len)
 			if (bFound == false) {
 				if (nReject == 0) {
 					pList = _pData->GetUserFromAddress(nDomainID, "postmaster");
-					ASSERT(pList != NULL) {
+					ASSERT(pList != NULL);
 					while(pList->NextRow()) {
 						nUserID = pList->GetInt("UserID");
 						AddUser(nUserID);
@@ -563,7 +563,6 @@ void Message::SaveMessage(void)
 		for (j=0; j<_Data.nBodies; j++) {
 			ASSERT(_Data.szBodies[j] != NULL);
 			_pData->InsertBodyLine(nID, j+1, _Data.szBodies[j]);
-			_pDB->ExecuteNR("INSERT INTO Bodies (MessageID, Line, Body) VALUES (%d, %d, '%q')", nID, j+1, _Data.szBodies[j]);
 		}
 	}
 	
@@ -576,19 +575,17 @@ void Message::SaveMessage(void)
 		for (i=0; i < _Data.nRemote; i++) {
 			ASSERT(_Data.szRemote[i] != NULL);
 			
-			pResult = _pDB->Execute("INSERT INTO Messages (UserID, Incoming) VALUES (%d, 0)", _Data.auth.nUserID);
-			ASSERT(pResult != NULL);
-			nID = pResult->GetInsertID();
-			delete pResult;
+			// *** is that right?  
+			nID = _pData->InsertMessage(_Data.auth.nUserID);
 			ASSERT(nID > 0);
-			
-			_pDB->ExecuteNR("INSERT INTO Outgoing (MessageID, SendTime, MsgFrom, MsgTo) VALUES (%d, DATETIME('now'), '%q', '%q')", nID, _Data.szFrom, _Data.szRemote[i]);
 			
 			for (j=0; j<_Data.nBodies; j++) {
 				ASSERT(_Data.szBodies[j] != NULL);
-				ASSERT(nID > 0);
-				_pDB->ExecuteNR("INSERT INTO Bodies (MessageID, Line, Body) VALUES (%d, %d, '%q')", nID, j+1, _Data.szBodies[j]);
+				_pData->InsertBodyLine(nID, j+1, _Data.szBodies[j]);
 			}
+			
+			_pData->InsertOutgoing(nID, _Data.szFrom, _Data.szRemote[i]);
+			
 		}
 	}	
 }

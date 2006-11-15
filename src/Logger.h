@@ -35,6 +35,7 @@ class Logger : public DpLogger
 		Logger(); 
 		virtual ~Logger();
 		
+		void Init();
 		void Log(char *text, ...);
 		void SetName(const char *name);
 		void SetID(int nID);

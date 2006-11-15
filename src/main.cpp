@@ -78,7 +78,7 @@ class theApp : public DpMain
 			_pServers   = NULL;
 			_nServers   = 0;
 			_pLogger    = NULL;
-			_pDataModel = NULL;
+			_pData      = NULL;
 		}
 		
 		
@@ -87,10 +87,10 @@ class theApp : public DpMain
 		// just verify that everything was cleaned up properly.
 		virtual ~theApp()
 		{
-			ASSERT(_pIni == NULL);
+			ASSERT(_pIni     == NULL);
 			ASSERT(_pServers == NULL);
-			ASSERT(_pLogger == NULL);
-			ASSERT(_pDataModel == NULL);
+			ASSERT(_pLogger  == NULL);
+			ASSERT(_pData    == NULL);
 			ASSERT(_nServers == 0);
 		}
 
@@ -106,10 +106,10 @@ class theApp : public DpMain
 		bool LoadConfig(void)
 		{
 			bool bLoaded;
-			ASSERT(_pIni == NULL);
+			ASSERT(_pIni     == NULL);
 			ASSERT(_pServers == NULL);
-			ASSERT(_pLogger == NULL);
-			ASSERT(_pDataModel == NULL);
+			ASSERT(_pLogger  == NULL);
+			ASSERT(_pData    == NULL);
 			ASSERT(_nServers == 0);
 			
 			_pIni = new DpIniFile;
@@ -391,13 +391,14 @@ class theApp : public DpMain
 			}
 			else {
 			
-				_pData = new Data;
+				_pData = new DataModel;
 				if (_pData->Connect(_pIni) == false) {
 					_pLogger->Log("Unable to connect to data store");
 					Shutdown();
 				}
 				else {
-					StartSMTP;
+					StartSMTP();
+// 					StartPop3();
 				}
 			}
 		}
