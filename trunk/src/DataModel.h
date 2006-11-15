@@ -40,17 +40,19 @@ class DataModel : public DpLock
 		DataModel(); 
 		virtual ~DataModel();
 		
+		bool Connect(DpIniFile *pIni);
 		int GetUserID(char *szUser, char *szPass);
 		int GetDomainID(char *szDomain);
 		int GetDomainReject(int nDomainID);
 		DataList* GetUserFromAddress(int nDomainID, char *szUser);
 		int InsertMessage(int nUserID);
 		void InsertBodyLine(int nMsgID, int lineno, char *szLine);
+		void InsertOutgoing(int nMsgID, char *szFrom, char *szRemote);
+
 		
 	protected:
 		
 	private:
-		bool Connect(DpIniFile *pIni);
 		
 };
 

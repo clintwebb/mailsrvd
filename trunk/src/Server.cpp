@@ -29,6 +29,7 @@ Server::Server()
 	_log.Log("Server()");
 	_nItems = 0;
 	_pList = NULL;
+	_pData = NULL;
 	_lock.Unlock();
 }
 		
@@ -57,6 +58,15 @@ Server::~Server()
 	_lock.Unlock();
 }
 
+
+void Server::AttachData(DataModel *pData)
+{
+	ASSERT(pData != NULL);
+	_lock.Lock();
+	ASSERT(_pData == NULL);
+	_pData = pData;
+	_lock.Unlock();
+}
 
 //-----------------------------------------------------------------------------
 // CJW: We over-ride the virtual function so taht we can update our logger 

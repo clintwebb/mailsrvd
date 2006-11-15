@@ -37,7 +37,10 @@ Logger::~Logger()
 }
 
 
-
+void Logger::Init()
+{
+	
+}
 
 
 

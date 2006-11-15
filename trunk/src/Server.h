@@ -23,6 +23,7 @@
 
 #include "Session.h"
 #include "Logger.h"
+#include "DataModel.h"
 
 
 class Server : public DpServerInterface 
@@ -31,6 +32,7 @@ class Server : public DpServerInterface
 		DpLock _lock;
 		int _nItems;
 		Session **_pList;
+		DataModel *_pData;
 		
 	protected:
 		Logger _log;
@@ -40,6 +42,7 @@ class Server : public DpServerInterface
 		virtual ~Server();
 		
 		virtual bool Listen(int nPort);
+		void AttachData(DataModel *pData);
 		
 	protected:
 		virtual void OnAccept(SOCKET nSocket) = 0;

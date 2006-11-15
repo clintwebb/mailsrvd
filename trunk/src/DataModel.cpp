@@ -114,8 +114,8 @@ int DataModel::GetUserID(char *szUser, char *szPass)
 	ASSERT(_pDB != NULL);
 	pResult = _pDB->Spawn();
 	ASSERT(pResult = NULL);
-	vUser = pResult->Quote(_Data.auth.szUser);
-	vPass = pResult->Quote(_Data.auth.szPass);
+	vUser = pResult->Quote(szUser);
+	vPass = pResult->Quote(szPass);
 	ASSERT(vUser != NULL && vPass != NULL);
 	if (pResult->Execute("SELECT UserID FROM Users WHERE Account='%s' AND Password='%s' LIMIT 1", vUser, vPass) == true) {
 		if(pResult->NextRow()) {
@@ -123,9 +123,9 @@ int DataModel::GetUserID(char *szUser, char *szPass)
 		}
 	}
 	delete pResult;
+	Unlock();
 	free(vUser);
 	free(vPass);
-	Unlock();
 	return (nUserID);
 }
 
@@ -143,7 +143,8 @@ int DataModel::GetDomainID(char *szDomain)
 	Lock();
 	ASSERT(_pDB != NULL);
 	pResult = _pDB->Spawn();
-	vDomain = pResult->Quote(domain);
+	vDomain = pResult->Quote(szDomain);
+	ASSERT(vDomain != NULL);
 	if (pResult->Execute("SELECT DomainID, Reject FROM Domains WHERE Name LIKE '%s'", vDomain) == true) {
 		if(pResult->NextRow()) {
 			pResult->GetData("DomainID", &nDomainID);
@@ -151,8 +152,9 @@ int DataModel::GetDomainID(char *szDomain)
 			pResult->GetData("Reject", &_Cache.domain.nReject);
 		}
 	}
-	free(vDomain);
 	delete pResult;
+	Unlock();
+	free(vDomain);
 	return(nDomainID);
 }
 
@@ -173,8 +175,8 @@ int DataModel::GetDomainReject(int nDomainID)
 		nReject = _Cache.domain.nReject;
 	}
 	else {
-		ASSERT(_pData != NULL);
-		pResult = _pData->Spawn();
+		ASSERT(_pDB != NULL);
+		pResult = _pDB->Spawn();
 		if (pResult->Execute("SELECT Reject FROM Domains WHERE DomainID=%d", nDomainID) == true) {
 			if(pResult->NextRow()) {
 				pResult->GetData("Reject", &nReject);
@@ -201,8 +203,8 @@ DataList* DataModel::GetUserFromAddress(int nDomainID, char *szUser)
 	ASSERT(nDomainID > 0 && szUser != NULL);
 
 	Lock();
-	ASSERT(_pData != NULL);
-	pResult = _pData->Spawn();
+	ASSERT(_pDB != NULL);
+	pResult = _pDB->Spawn();
 	ASSERT(pResult != NULL);
 	vUser = pResult->Quote(szUser);
 	if (pResult->Execute("SELECT UserID FROM Addresses WHERE DomainID=%d AND Name LIKE '%s'", nDomainID, vUser) == true) {
@@ -213,12 +215,12 @@ DataList* DataModel::GetUserFromAddress(int nDomainID, char *szUser)
 			pList->AddRow();
 			pList->AddData(0, nUserID);
 		}
+		pList->Complete();
 	}
-	free(vUser);
 	delete pResult;
 	Unlock();
-	
-	pList->Complete();
+	free(vUser);
+
 	return(pList);
 }
 
@@ -236,8 +238,8 @@ int DataModel::InsertMessage(int nUserID)
 	ASSERT(nUserID > 0);
 	
 	Lock();
-	ASSERT(_pData != NULL);
-	pResult = _pData->Spawn();
+	ASSERT(_pDB != NULL);
+	pResult = _pDB->Spawn();
 	ASSERT(pResult != NULL);
 	if (pResult->Execute("INSERT INTO Messages (UserID, Incoming) VALUES (%d, 1)", nUserID) == true) {
 		nMsgID = pResult->GetInsertID();
@@ -266,9 +268,33 @@ void DataModel::InsertBodyLine(int nMsgID, int lineno, char *szLine)
 	vLine = pResult->Quote(szLine);
 	ASSERT(vLine != NULL);
 	pResult->ExecuteNR("INSERT INTO Bodies (MessageID, Line, Body) VALUES (%d, %d, '%s')", nMsgID, lineno, vLine);
-	free(vLine);
-	delete pResult);
+	delete pResult;
 	Unlock();
+	free(vLine);
 }
 
 
+
+
+void DataModel::InsertOutgoing(int nMsgID, char *szFrom, char *szRemote)
+{
+	DpMySqlDB *pResult;
+	char *vFrom, *vRemote;
+	
+	ASSERT(nMsgID > 0 && szFrom != NULL && szRemote != NULL);
+	
+	Lock();
+	ASSERT(_pData != NULL);
+	pResult = _pData->Spawn();
+	ASSERT(pResult != NULL);
+	vFrom = pResult->Quote(szFrom);
+	vRemote = pResult->Quote(szRemote);
+	ASSERT(vFrom != NULL && vRemote != NULL);
+	
+	pResult->ExecuteNR("INSERT INTO Outgoing (MessageID, SendTime, MsgFrom, MsgTo) VALUES (%d, DATETIME('now'), '%q', '%q')", nID, vFrom, vRemote);
+
+	delete pResult;
+	Unlock();
+	free(vFrom);
+	free(vRemote);
+}
