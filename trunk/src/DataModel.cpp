@@ -66,6 +66,7 @@ bool DataModel::Connect(DpIniFile *pIni)
 				if (pIni->GetValue("db_pass", &szPassword) == true) {
 					if (pIni->GetValue("db_db", &szDB) == true) {
 				
+						log.Log("Connecting to database: %s@%s", szUsername, szServer);
 						_pDB = new DpMySqlDB;
 						ASSERT(_pDB != NULL);
 						if (_pDB->Connect(szServer, szUsername, szPassword, szDB) == true) {
@@ -112,11 +113,12 @@ int DataModel::GetUserID(char *szUser, char *szPass)
 	
 	Lock();
 	ASSERT(_pDB != NULL);
+	vUser = _pDB->Quote(szUser);
+	vPass = _pDB->Quote(szPass);
+	ASSERT(vUser != NULL && vPass != NULL);
+	
 	pResult = _pDB->Spawn();
 	ASSERT(pResult = NULL);
-	vUser = pResult->Quote(szUser);
-	vPass = pResult->Quote(szPass);
-	ASSERT(vUser != NULL && vPass != NULL);
 	if (pResult->Execute("SELECT UserID FROM Users WHERE Account='%s' AND Password='%s' LIMIT 1", vUser, vPass) == true) {
 		if(pResult->NextRow()) {
 			 pResult->GetData("UserID", &nUserID);
@@ -142,9 +144,10 @@ int DataModel::GetDomainID(char *szDomain)
 	
 	Lock();
 	ASSERT(_pDB != NULL);
-	pResult = _pDB->Spawn();
-	vDomain = pResult->Quote(szDomain);
+	vDomain = _pDB->Quote(szDomain);
 	ASSERT(vDomain != NULL);
+
+	pResult = _pDB->Spawn();
 	if (pResult->Execute("SELECT DomainID, Reject FROM Domains WHERE Name LIKE '%s'", vDomain) == true) {
 		if(pResult->NextRow()) {
 			pResult->GetData("DomainID", &nDomainID);
@@ -201,17 +204,19 @@ DataList* DataModel::GetUserFromAddress(int nDomainID, char *szUser)
 	int nUserID;
 	
 	ASSERT(nDomainID > 0 && szUser != NULL);
+	ASSERT(strlen(szUser) < 255);
 
 	Lock();
 	ASSERT(_pDB != NULL);
+	vUser = _pDB->Quote(szUser);
+
 	pResult = _pDB->Spawn();
 	ASSERT(pResult != NULL);
-	vUser = pResult->Quote(szUser);
 	if (pResult->Execute("SELECT UserID FROM Addresses WHERE DomainID=%d AND Name LIKE '%s'", nDomainID, vUser) == true) {
 		pList = new DataList;
 		pList->AddColumn("UserID");
 		while(pResult->NextRow()) {
-			nUserID = pResult->GetInt("UserID");
+			pResult->GetData("UserID", &nUserID);
 			pList->AddRow();
 			pList->AddData(0, nUserID);
 		}
@@ -233,6 +238,7 @@ DataList* DataModel::GetUserFromAddress(int nDomainID, char *szUser)
 int DataModel::InsertMessage(int nUserID)
 {
 	DpMySqlDB *pResult;
+	Logger log;
 	int nMsgID=0;
 	
 	ASSERT(nUserID > 0);
@@ -241,10 +247,10 @@ int DataModel::InsertMessage(int nUserID)
 	ASSERT(_pDB != NULL);
 	pResult = _pDB->Spawn();
 	ASSERT(pResult != NULL);
-	if (pResult->Execute("INSERT INTO Messages (UserID, Incoming) VALUES (%d, 1)", nUserID) == true) {
-		nMsgID = pResult->GetInsertID();
-		ASSERT(nMsgID > 0);
-	}
+	log.Log("INSERT INTO Messages (UserID, Incoming) VALUES (%d, 1)", nUserID);
+	pResult->Execute("INSERT INTO Messages (UserID, Incoming) VALUES (%d, 1)", nUserID);
+	nMsgID = pResult->GetInsertID();
+	ASSERT(nMsgID > 0);
 	delete pResult;
 	Unlock();
 	
@@ -258,16 +264,20 @@ int DataModel::InsertMessage(int nUserID)
 void DataModel::InsertBodyLine(int nMsgID, int lineno, char *szLine)
 {
 	DpMySqlDB *pResult;
+	char szLineCopy[1025];
 	char *vLine;
 	ASSERT(nMsgID > 0 && lineno > 0 && szLine != NULL);
 	
+	strncpy(szLineCopy, szLine, 1024);
+	
 	Lock();
-	ASSERT(_pData != NULL);
-	pResult = _pData->Spawn();
-	ASSERT(pResult != NULL);
-	vLine = pResult->Quote(szLine);
+	ASSERT(_pDB != NULL);
+	vLine = _pDB->Quote(szLineCopy);
 	ASSERT(vLine != NULL);
-	pResult->ExecuteNR("INSERT INTO Bodies (MessageID, Line, Body) VALUES (%d, %d, '%s')", nMsgID, lineno, vLine);
+	
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
+	pResult->Execute("INSERT INTO Bodies (MessageID, Line, Body) VALUES (%d, %d, '%s')", nMsgID, lineno, vLine);
 	delete pResult;
 	Unlock();
 	free(vLine);
@@ -284,17 +294,19 @@ void DataModel::InsertOutgoing(int nMsgID, char *szFrom, char *szRemote)
 	ASSERT(nMsgID > 0 && szFrom != NULL && szRemote != NULL);
 	
 	Lock();
-	ASSERT(_pData != NULL);
-	pResult = _pData->Spawn();
-	ASSERT(pResult != NULL);
-	vFrom = pResult->Quote(szFrom);
-	vRemote = pResult->Quote(szRemote);
+	ASSERT(_pDB != NULL);
+	vFrom = _pDB->Quote(szFrom);
+	vRemote = _pDB->Quote(szRemote);
 	ASSERT(vFrom != NULL && vRemote != NULL);
+
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
 	
-	pResult->ExecuteNR("INSERT INTO Outgoing (MessageID, SendTime, MsgFrom, MsgTo) VALUES (%d, DATETIME('now'), '%q', '%q')", nID, vFrom, vRemote);
+	pResult->Execute("INSERT INTO Outgoing (MessageID, SendTime, MsgFrom, MsgTo) VALUES (%d, DATETIME('now'), '%q', '%q')", nMsgID, vFrom, vRemote);
 
 	delete pResult;
 	Unlock();
 	free(vFrom);
 	free(vRemote);
 }
+

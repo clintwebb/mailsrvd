@@ -66,6 +66,14 @@ class Session : public DpThreadObject
 			return (b);
 		}
 
+		virtual void AttachData(DataModel *pData) {
+		    ASSERT(pData != NULL);
+		    _lock.Lock();
+			ASSERT(_pData == NULL);
+			_pData = pData;
+			_lock.Unlock();
+		}
+
 		
 		bool Connect(char *ip, int port);
 		
@@ -74,13 +82,6 @@ class Session : public DpThreadObject
 		virtual void OnIdle(void);
 		virtual void OnBusy(void);
 		
-		virtual void AttachData(DataModel *pData) {
-		    ASSERT(pData != NULL);
-		    _lock.Lock();
-			ASSERT(_pData == NULL);
-			_pData = pData;
-			_lock.Unlock();
-		}
 		
 		virtual void OnStart(void)			= 0;
 		virtual void OnCommand(char *line)	= 0;

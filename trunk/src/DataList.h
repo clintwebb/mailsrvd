@@ -25,6 +25,7 @@
 
 #include <string.h>
 
+#include <DevPlus.h>
 
 struct DataItem {
 	union {
@@ -42,6 +43,12 @@ class DataRow {
 		DataItem *_pItems;
 
 	public:
+		DataRow()
+		{
+			_nColumns = 0;
+			_pItems = NULL;
+		}
+	
 		DataRow(int nColumns) 
 		{
 			ASSERT(nColumns > 0);
@@ -115,6 +122,31 @@ class DataRow {
 			}
 			return(nResult);
 		}
+		
+		
+		void SetInt(int nIndex, int nValue)
+		{
+			ASSERT(nIndex >= 0 && nIndex < _nColumns);
+			ASSERT(_pItems != NULL);
+			_pItems[nIndex].bInteger = true;
+			_pItems[nIndex].data.nValue = nValue;
+		}
+		
+		int AddColumn(char *szName)
+		{
+			int nIndex = -1;
+			ASSERT(szName != NULL);
+			ASSERT((_nColumns == 0 && _pItems == NULL) || (_nColumns > 0 && _pItems != NULL));
+			_pItems = (DataItem *) realloc(_pItems, sizeof(DataItem) * (_nColumns + 1));
+			ASSERT(_pItems != NULL);
+			
+			_pItems[_nColumns].bInteger = false;
+			_pItems[_nColumns].data.szValue = (char *) malloc(strlen(szName)+1);
+			strcpy(_pItems[_nColumns].data.szValue, szName);
+			nIndex = _nColumns;
+			_nColumns ++;
+			return(nIndex);
+		}
 };
 
 
@@ -123,6 +155,7 @@ class DataList
 	private:
 		bool _bComplete;
 		int  _nCurrentRow;
+		int  _nRowCount;
 		int  _nColumns;
 		DataRow *_pHeaders, **_pRows;
 		
@@ -134,10 +167,12 @@ class DataList
 		
 		void AddRow();
 		void AddColumn(char *szName);
+		void AddData(int nIndex, int nValue);
 		void Complete();
 		
 		bool NextRow();
 		int GetInt(char *szName);
+		int GetInt(int nIndex);
 		
 	protected:
 		
