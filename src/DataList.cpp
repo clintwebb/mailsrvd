@@ -139,6 +139,24 @@ int DataList::GetInt(int nIndex)
 	return(nResult);
 }
 
+//-----------------------------------------------------------------------------
+// CJW: get an integer from the row.  The index is basically the column number, 
+// 		starting from 0.
+char * DataList::GetStr(int nIndex)
+{
+	char *str = NULL;
+	
+	ASSERT(nIndex >= 0);
+	ASSERT(_nCurrentRow < _nRowCount && _nCurrentRow >= 0);
+	ASSERT(_pRows != NULL);
+	ASSERT(_pRows[_nCurrentRow] != NULL);
+	
+	str = _pRows[_nCurrentRow]->GetStr(nIndex);
+	
+	return(str);
+}
+
+
 
 void DataList::AddData(int nIndex, int nValue)
 {
@@ -146,5 +164,14 @@ void DataList::AddData(int nIndex, int nValue)
 	ASSERT(_nCurrentRow < 0 && _nRowCount > 0);
 	ASSERT(nIndex < _nColumns);
 	_pRows[_nRowCount-1]->SetInt(nIndex, nValue);
+}
+
+
+void DataList::AddData(int nIndex, char *szValue) 
+{
+	ASSERT(nIndex >= 0 && szValue != NULL);
+	ASSERT(_nCurrentRow < 0 && _nRowCount > 0);
+	ASSERT(nIndex < _nColumns);
+	_pRows[_nRowCount-1]->SetStr(nIndex, szValue);
 }
 

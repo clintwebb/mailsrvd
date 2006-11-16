@@ -35,11 +35,13 @@ void PopServer::OnAccept(SOCKET nSocket)
 	PopSession *pSession;
 	
 	ASSERT(nSocket > 0);
+	ASSERT(_pData != NULL);
 	
 	_log.Log("Connection received on socket %d.", nSocket);
 		
 	pSession = new PopSession;
 	ASSERT(pSession != NULL); 
+	pSession->AttachData(_pData);
 	pSession->Accept(nSocket);
 	AddSession(pSession);
 }

@@ -48,6 +48,14 @@ class Server : public DpServerInterface
 		virtual void OnAccept(SOCKET nSocket) = 0;
 		virtual void AddSession(Session *ptr);
 		
+		int ActiveSessions() { 
+			int n;
+			_lock.Lock();
+			n = _nItems;
+			_lock.Unlock();
+			return(n);
+		}
+		
 	private:
 		
 };

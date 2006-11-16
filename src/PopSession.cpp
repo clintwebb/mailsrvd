@@ -128,23 +128,17 @@ void PopSession::OnClose(void)
 {
 	int i;
 	
-	ASSERT(_pDB != NULL);
+	ASSERT(_pData != NULL);
 	
 	if (_Data.bLoaded == true) {
 	
-		_pDB->ExecuteNR("BEGIN");
-		
 		ASSERT((_Data.nMessages > 0 && _Data.pMsgList != NULL) || (_Data.nMessages == 0 && _Data.pMsgList == NULL));
 		for (i=0; i<_Data.nMessages; i++) {
 			ASSERT(_Data.pMsgList[i].nMsgID > 0);
 			if (_Data.pMsgList[i].bDeleted == true) {
-				_pDB->ExecuteNR("DELETE FROM Bodies WHERE MessageID=%d", _Data.pMsgList[i].nMsgID);
-				_pDB->ExecuteNR("DELETE FROM Messages WHERE MessageID=%d", _Data.pMsgList[i].nMsgID);
-				_pDB->ExecuteNR("DELETE FROM Summaries WHERE MessageID=%d", _Data.pMsgList[i].nMsgID);
+				_pData->DeleteMessage(_Data.pMsgList[i].nMsgID);
 			}
 		}
-		
-		_pDB->ExecuteNR("COMMIT");
 	}	
 }
 
@@ -184,8 +178,6 @@ void PopSession::ProcessUSER(char *ptr, int len)
 // CJW: 
 void PopSession::ProcessPASS(char *ptr, int len)
 {
-	DpSqlite3Result *pResult;
-
 	ASSERT(ptr != NULL);
 	ASSERT(len >= 4);
 	
@@ -203,12 +195,7 @@ void PopSession::ProcessPASS(char *ptr, int len)
 		strcpy(_Data.szPass , &ptr[5]);
 		_log.Log("PASS: (%s)", _Data.szPass);
 		
-		pResult = _pDB->Execute("SELECT UserID FROM Users WHERE Account='%q' AND Password='%q'", _Data.szUser, _Data.szPass);
-		ASSERT(pResult != NULL);
-		if(pResult->NextRow()) {
-			_Data.nUserID  = pResult->GetInt("UserID");
-		}
-		
+		_Data.nUserID = _pData->GetUserID(_Data.szUser, _Data.szPass);
 		if (_Data.nUserID == 0)	{ _Qout.Print("-ERR Invalid account details.\r\n"); }
 		else 					{ _Qout.Print("+OK\r\n"); }
 		
@@ -358,7 +345,7 @@ void PopSession::ProcessUIDL(char *ptr, int len)
 // CJW: 
 void PopSession::ProcessRETR(char *ptr, int len)
 {
-	DpSqlite3Result *pResult;
+	DataList *pList;
 	char *line;
 	int nMsgID;
 	int slen;
@@ -383,16 +370,17 @@ void PopSession::ProcessRETR(char *ptr, int len)
 			ASSERT(nMsgID > 0 && nMsgID <= _Data.nMessages);
 			_Qout.Print("+OK %d octets\r\n", _Data.pMsgList[nMsgID-1].nSize);
 			
-			pResult = _pDB->Execute("SELECT Body FROM Bodies WHERE MessageID=%d", _Data.pMsgList[nMsgID-1].nMsgID);
-			ASSERT(pResult != NULL);
-			while(pResult->NextRow()) {
-				line = pResult->GetStr("Body");
-				ASSERT(line != NULL);
-				slen = strlen(line);
-				if (slen > 1024) line[1024] = '\0';
-				_Qout.Print("%s\r\n", line);
+			pList = _pData->GetMessageBody(_Data.pMsgList[nMsgID-1].nMsgID);
+			if (pList != NULL) {
+				while(pList->NextRow()) {
+					line = pList->GetStr(0);
+					ASSERT(line != NULL);
+					slen = strlen(line);
+					if (slen > 1024) line[1024] = '\0';
+					_Qout.Print("%s\r\n", line);
+				}
 			}
-			delete pResult;
+			delete pList;
 
 			_Qout.Print(".\r\n");
 		}
@@ -494,7 +482,7 @@ void PopSession::Reset(void)
 // 		list.
 void PopSession::LoadMessages(void)
 {
-	DpSqlite3Result *pResult;
+	DataList *pList;
 	int i;
 
 	ASSERT(_Data.nMessages == 0);
@@ -503,18 +491,22 @@ void PopSession::LoadMessages(void)
 	_Data.pMsgList = (PopMsgSize *) malloc(sizeof(PopMsgSize) * MAX_POP_ITEMS);
 	ASSERT(_Data.pMsgList != NULL);
 	
+	ASSERT(_pData != NULL);
+	
+	
 	// get all the messageID's from the database.
 	// *** Note, the limit amount here should be in the config file.
-	pResult = _pDB->Execute("SELECT MessageID FROM Messages WHERE UserID=%d AND Incoming=1 LIMIT %d", _Data.nUserID, MAX_POP_ITEMS);
-	ASSERT(pResult != NULL);
-	while(pResult->NextRow()) {
-		ASSERT(_Data.nMessages < MAX_POP_ITEMS);
-		_Data.pMsgList[_Data.nMessages].nMsgID = pResult->GetInt("MessageID");
-		_Data.pMsgList[_Data.nMessages].nSize = 0;
-		_Data.pMsgList[_Data.nMessages].bDeleted = false;
-		_Data.nMessages++;
+	pList = _pData->GetMessageList(_Data.nUserID, MAX_POP_ITEMS);
+	if (pList != NULL) {
+		while(pList->NextRow()) {
+			ASSERT(_Data.nMessages < MAX_POP_ITEMS);
+			_Data.pMsgList[_Data.nMessages].nMsgID = pList->GetInt(0);
+			_Data.pMsgList[_Data.nMessages].nSize  = pList->GetInt(1);
+			_Data.pMsgList[_Data.nMessages].bDeleted = false;
+			_Data.nMessages++;
+		}
+		delete pList;
 	}
-	delete pResult;
 	
 	if (_Data.nMessages == 0) {
 		free(_Data.pMsgList);
@@ -522,20 +514,17 @@ void PopSession::LoadMessages(void)
 	}
 	else {
 	
-		_log.Log("%d Messages found for this user.  Calculating message sizes.", _Data.nMessages);
+		_log.Log("%d Messages found for this user.  Computing message sizes.", _Data.nMessages);
 				
 		ASSERT(_Data.nMessages <= MAX_POP_ITEMS);
 		for (i=0; i<_Data.nMessages; i++) {
 			ASSERT(i < MAX_POP_ITEMS);
 			ASSERT(_Data.pMsgList[i].nMsgID > 0);
-			ASSERT(_Data.pMsgList[i].nSize == 0);
-			pResult = _pDB->Execute("SELECT SUM(LENGTH(Body)) AS Size FROM Bodies WHERE MessageID=%d", _Data.pMsgList[i].nMsgID);
-			ASSERT(pResult != NULL);
-			if(pResult->NextRow()) {
-				_Data.pMsgList[i].nSize = pResult->GetInt("Size");
-				_Data.nTotalSize += (_Data.pMsgList[i].nSize + 2);
+			if (_Data.pMsgList[i].nSize == 0) {
+				_log.Log("%d does not have size stored.  Calculating message size.", _Data.pMsgList[i].nMsgID);
+				_Data.pMsgList[i].nSize = _pData->GetMessageLength(_Data.pMsgList[i].nMsgID);
 			}
-			delete pResult;
+			_Data.nTotalSize += (_Data.pMsgList[i].nSize + 2);
 		}
 	}
 				

@@ -28,7 +28,7 @@
 
 
 
-#define MAX_POP_ITEMS 50
+#define MAX_POP_ITEMS 500
 #define IDLE_LIMIT	1000
 
 #define MAX_LOCAL_ADDRESSES		1000

@@ -118,7 +118,7 @@ int DataModel::GetUserID(char *szUser, char *szPass)
 	ASSERT(vUser != NULL && vPass != NULL);
 	
 	pResult = _pDB->Spawn();
-	ASSERT(pResult = NULL);
+	ASSERT(pResult != NULL);
 	if (pResult->Execute("SELECT UserID FROM Users WHERE Account='%s' AND Password='%s' LIMIT 1", vUser, vPass) == true) {
 		if(pResult->NextRow()) {
 			 pResult->GetData("UserID", &nUserID);
@@ -309,4 +309,203 @@ void DataModel::InsertOutgoing(int nMsgID, char *szFrom, char *szRemote)
 	free(vFrom);
 	free(vRemote);
 }
+
+
+
+void DataModel::DeleteMessage(int nMsgID)
+{
+	DpMySqlDB *pResult;
+	
+	ASSERT(nMsgID > 0);
+				
+	Lock();
+	ASSERT(_pDB != NULL);
+	
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
+	pResult->Execute("DELETE FROM Bodies WHERE MessageID=%d", nMsgID);
+	delete pResult;
+	
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
+	pResult->Execute("DELETE FROM Messages WHERE MessageID=%d", nMsgID);
+	delete pResult;
+	
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
+	pResult->Execute("DELETE FROM Summaries WHERE MessageID=%d", nMsgID);
+	delete pResult;
+
+	Unlock();
+}
+
+
+
+DataList * DataModel::GetMessageList(int nUserID, int nMax)
+{
+	DpMySqlDB *pResult;
+	DataList *pList = NULL;
+	int nMsgID, nSize;
+	
+	ASSERT(nUserID > 0 && nMax > 0);
+	
+	Lock();
+	ASSERT(_pDB != NULL);
+	
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
+	if (pResult->Execute("SELECT MessageID,BodySize FROM Messages WHERE UserID=%d AND Incoming=1 LIMIT %d", nUserID, nMax) == true) {
+		pList = new DataList;
+		pList->AddColumn("MessageID");
+		pList->AddColumn("Size");
+		while(pResult->NextRow()) {
+			pResult->GetData("MessageID", &nMsgID);
+			pResult->GetData("BodySize", &nSize);
+			pList->AddRow();
+			pList->AddData(0, nMsgID);
+			pList->AddData(1, nSize);
+		}
+		pList->Complete();
+	}
+	delete pResult;
+	Unlock();
+
+	return(pList);
+}
+
+
+int DataModel::GetMessageLength(int nMsgID)
+{
+	DpMySqlDB *pResult;
+	int nSize = -1;
+	
+	ASSERT(nMsgID > 0);
+			
+	Lock();
+	ASSERT(_pDB != NULL);
+	
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
+	if (pResult->Execute("SELECT SUM(LENGTH(Body)) AS Size FROM Bodies WHERE MessageID=%d", nMsgID) == true) {
+		if(pResult->NextRow()) {
+			pResult->GetData("Size", &nSize);
+		}
+	}
+	delete pResult;
+	Unlock();
+	
+	return(nSize);
+}
+
+
+
+DataList * DataModel::GetMessageBody(int nMsgID)
+{
+	DpMySqlDB *pResult;
+	DataList *pList=NULL;
+	char line[1025];
+	int slen;
+	
+	ASSERT(nMsgID > 0);
+			
+	Lock();
+	ASSERT(_pDB != NULL);
+	
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
+	if (pResult->Execute("SELECT Body FROM Bodies WHERE MessageID=%d ORDER BY Line", nMsgID) == true) {
+		pList = new DataList;
+		pList->AddColumn("Line");
+		while(pResult->NextRow()) {
+			pResult->GetData("Body", line, 1024);
+			slen = strlen(line);
+			if (slen > 1024) line[1024] = '\0';
+			pList->AddRow();
+			pList->AddData(0, line);
+		}
+		pList->Complete();
+	}
+	delete pResult;
+	Unlock();
+	
+	return(pList);
+}
+
+
+
+//-----------------------------------------------------------------------------
+// CJW: We have a message we need to insert. 
+void DataModel::UpdateMessageSize(int nMsgID, int nSize)
+{
+	DpMySqlDB *pResult;
+	
+	ASSERT(nMsgID > 0 && nSize >= 0);
+	
+	Lock();
+	ASSERT(_pDB != NULL);
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
+	pResult->Execute("UPDATE Messages SET BodySize=%d WHERE MessageID=%d", nSize, nMsgID);
+	delete pResult;
+	Unlock();
+}
+
+
+//-----------------------------------------------------------------------------
+// CJW: The data stored did not originally contain any message size details, it 
+// 		was calculated when messages were retrieved.  Howevere, this can be  a 
+// 		heavy resource that is unnecessary because we actually know the size of 
+// 		the data when we receive the message and before it is actually put in 
+// 		the database.  We merely need to store this data.
+void DataModel::ConvertPop3()
+{
+	Logger log;
+	DpMySqlDB *pResult;
+	DataList *pList = NULL;
+	int nMsgID, nSize, nCount, nTotal;
+	
+	
+	// First lets get the list of messages
+	Lock();
+	ASSERT(_pDB != NULL);
+	pResult = _pDB->Spawn();
+	ASSERT(pResult != NULL);
+	if (pResult->Execute("SELECT MessageID FROM Messages WHERE Incoming=1 AND BodySize=0") == true) {
+		pList = new DataList;
+		pList->AddColumn("MessageID");
+		while(pResult->NextRow()) {
+			pResult->GetData("MessageID", &nMsgID);
+			pList->AddRow();
+			pList->AddData(0, nMsgID);
+		}
+		pList->Complete();
+	}
+	delete pResult;
+	Unlock();
+
+
+	
+
+	if (pList != NULL) {
+		nTotal = pList->GetRowCount();
+		ASSERT(nTotal >= 0);
+		log.Log("ConvertPop - %d items to calculate.", nTotal);
+		
+		nCount = 0;
+		while (pList->NextRow()) {
+			nCount ++;
+			nMsgID = pList->GetInt(0);
+			ASSERT(nMsgID > 0);
+			log.Log("ConvertPop - Calculating %d (%d of %d)", nMsgID, nCount, nTotal);
+			nSize = GetMessageLength(nMsgID);
+			ASSERT(nSize >= 0);
+			UpdateMessageSize(nMsgID, nSize);
+			log.Log("ConvertPop - Finished Calculating %d", nMsgID);
+			Sleep(10);
+		}
+		
+		delete pList;
+	}
+}
+
 

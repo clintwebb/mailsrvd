@@ -219,7 +219,7 @@ class theApp : public DpMain
 		//---------------------------------------------------------------------
 		// Check the INI, and if the POP3 module is enabled, then we need to 
 		// let the PopServer object handle it from that moment on.
-/*		virtual void StartPop3(void)
+		virtual void StartPop3(void)
 		{
 			PopServer *pServer;
 			DpTextTools text;
@@ -274,7 +274,7 @@ class theApp : public DpMain
 				}
 			}
 		}
-		*/
+		
 		
 		//---------------------------------------------------------------------
 		// This will setup the part that sends the emails out.  It is not the 
@@ -358,6 +358,13 @@ class theApp : public DpMain
 		}
 */		
 		
+		
+		void ConvertPop3()
+		{
+			ASSERT(_pData != NULL);
+			_pData->ConvertPop3();
+		}
+		
 
 		//---------------------------------------------------------------------
 		// This is where everything is started up.  So we need to start up data 
@@ -396,8 +403,10 @@ class theApp : public DpMain
 					Shutdown();
 				}
 				else {
+ 					
+					StartPop3();
 					StartSMTP();
-// 					StartPop3();
+// 					ConvertPop3();
 				}
 			}
 		}
