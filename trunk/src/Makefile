@@ -17,9 +17,8 @@
 
 OBJS=Session.o Server.o Logger.o  \
 	 SmtpServer.o Message.o  \
-	 Main.o DataModel.o DataList.o 
-
-# PopSession.o PopServer.o
+	 Main.o DataModel.o DataList.o \
+     PopSession.o PopServer.o
 
 	 
 LIBS=-lmysqlclient -lpthread -ldevplus -ldevplus-main -ldevplus-thread -ldevplus-mysql

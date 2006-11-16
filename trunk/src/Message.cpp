@@ -126,39 +126,50 @@ void Message::OnData(char *line)
 		
 		ASSERT(_Data.auth.szPass == NULL && _Data.auth.nUserID == 0);
 		if (_Data.auth.szUser == NULL) {
-			result = (char *) base.Decode(line, &len);
-			ASSERT(len > 0 && result != NULL);
-			_Data.auth.szUser = (char *) malloc(len+1);
-			strncpy(_Data.auth.szUser, result, len);
-			_Data.auth.szUser[len] = '\0';
-			
-			_Qout.Print("334 UGFzc3dvcmQ6\r\n");
-			_log.Log("Received username '%s', requesting password", _Data.auth.szUser);
-		}
-		else {
-			result = (char *) base.Decode(line, &len);
-			ASSERT(len > 0 && result != NULL);
-			_Data.auth.szPass = (char *) malloc(len+1);
-			strncpy(_Data.auth.szPass, result, len);
-			_Data.auth.szPass[len] = '\0';
-			
-			// now validate the account.
-			_Data.auth.nUserID = _pData->GetUserID(_Data.auth.szUser, _Data.auth.szPass);
-			
-			ASSERT(_Data.auth.nUserID >= 0);
-			if (_Data.auth.nUserID > 0) {
-				_Qout.Print("250 OK\r\n");
-				_Data.auth.bAuthenticated = true;
-				_log.Log("Authenticated");
+			if (strlen(line) > 0) {
+				result = (char *) base.Decode(line, &len);
+				ASSERT(len > 0 && result != NULL);
+				_Data.auth.szUser = (char *) malloc(len+1);
+				strncpy(_Data.auth.szUser, result, len);
+				_Data.auth.szUser[len] = '\0';
+				
+				_Qout.Print("334 UGFzc3dvcmQ6\r\n");
+				_log.Log("Received username '%s', requesting password", _Data.auth.szUser);
 			}
 			else {
-				_Qout.Print("535 authentication failed (#5.7.1)\r\n");
-				_log.Log("--> 535");
-				ASSERT(_Data.auth.bAuthenticated == false);
+				_log.Log("Username was blank");
 			}
-			
-			ChangeState(Waiting);
-			_Data.auth.bAuthenticating = false;
+		}
+		else {
+			if (strlen(line) > 0) {
+				result = (char *) base.Decode(line, &len);
+				ASSERT(len > 0 && result != NULL);
+				_Data.auth.szPass = (char *) malloc(len+1);
+				strncpy(_Data.auth.szPass, result, len);
+				_Data.auth.szPass[len] = '\0';
+				
+				// now validate the account.
+				_Data.auth.nUserID = _pData->GetUserID(_Data.auth.szUser, _Data.auth.szPass);
+				
+				ASSERT(_Data.auth.nUserID >= 0);
+				if (_Data.auth.nUserID > 0) {
+					_Qout.Print("250 OK\r\n");
+					_Data.auth.bAuthenticated = true;
+					_log.Log("Authenticated");
+				}
+				else {
+					_Qout.Print("535 authentication failed (#5.7.1)\r\n");
+					_log.Log("--> 535");
+					ASSERT(_Data.auth.bAuthenticated == false);
+				}
+				
+				ChangeState(Waiting);
+				_Data.auth.bAuthenticating = false;
+			}
+			else {
+				ASSERT(_Data.auth.szUser != NULL);
+				_log.Log("Password was blank.  Username:", _Data.auth.szUser);
+			}
 		}
 	}
 	else {
@@ -375,11 +386,7 @@ void Message::ProcessRCPT(char *ptr, int len)
 		ASSERT(_pData != NULL);
 		nReject = 0; 
 		nDomainID = _pData->GetDomainID(domain);
-		ASSERT(nDomainID > 0);
-		nReject   = _pData->GetDomainReject(nDomainID);
-		ASSERT(nReject == 0 || nReject == 1);
 		_log.Log("DomainID: %d", nDomainID);
-		_log.Log("Reject: %d", nReject);
 		
 		if (nDomainID == 0) {
 			if (_Data.auth.bAuthenticated == false) {
@@ -408,6 +415,11 @@ void Message::ProcessRCPT(char *ptr, int len)
 		else {
 		
 			// now that we know we handle this domain, we need to see if this username exists.
+			
+			nReject   = _pData->GetDomainReject(nDomainID);
+			ASSERT(nReject == 0 || nReject == 1);
+			_log.Log("Reject: %d", nReject);
+			
 			
 			ASSERT(_pData != NULL);
 			bFound = false;
@@ -549,6 +561,7 @@ void Message::ProcessQUIT(char *ptr, int len)
 void Message::SaveMessage(void)
 {
 	int i, j, nID;
+	int nSize = 0;
 	
 	ASSERT(_Data.szBodies != NULL  && _Data.nBodies > 0);
 	ASSERT(_pData != NULL);
@@ -564,7 +577,10 @@ void Message::SaveMessage(void)
 		for (j=0; j<_Data.nBodies; j++) {
 			ASSERT(_Data.szBodies[j] != NULL);
 			_pData->InsertBodyLine(nID, j+1, _Data.szBodies[j]);
+			nSize += strlen(_Data.szBodies[j]);
 		}
+		
+		_pData->UpdateMessageSize(nID, nSize);
 	}
 	
 	if (_Data.nRemote > 0) {
@@ -583,10 +599,11 @@ void Message::SaveMessage(void)
 			for (j=0; j<_Data.nBodies; j++) {
 				ASSERT(_Data.szBodies[j] != NULL);
 				_pData->InsertBodyLine(nID, j+1, _Data.szBodies[j]);
+				nSize += strlen(_Data.szBodies[j]);
 			}
 			
 			_pData->InsertOutgoing(nID, _Data.szFrom, _Data.szRemote[i]);
-			
+			_pData->UpdateMessageSize(nID, nSize);
 		}
 	}	
 }

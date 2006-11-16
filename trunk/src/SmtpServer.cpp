@@ -37,6 +37,7 @@ SmtpServer::~SmtpServer()
 void SmtpServer::OnAccept(SOCKET nSocket)
 {
 	Message *pMsg;
+	int n, s;
 	
 	ASSERT(nSocket > 0);
 	_log.Log("Connection received on socket %d.", nSocket);
@@ -46,6 +47,9 @@ void SmtpServer::OnAccept(SOCKET nSocket)
 	pMsg->AttachData(_pData);
 	pMsg->Accept(nSocket);
 	AddSession(pMsg);
-	Sleep(500);
+	n = ActiveSessions();
+	s = 1000 + (n * 20);
+	_log.Log("SMTP: Active Sessions:%d, Sleeping:%d", n, s);
+	Sleep(s);
 }
 

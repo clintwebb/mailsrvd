@@ -123,6 +123,21 @@ class DataRow {
 			return(nResult);
 		}
 		
+		//---------------------------------------------------------------------
+		// CJW: Return the integer for the column in the row.  If it is stored 
+		// 		as a string, then do an atoi on it and return that.  
+		char * GetStr(int nIndex) 
+		{
+			char *str = NULL;
+			
+			ASSERT(nIndex >= 0);
+			ASSERT(nIndex < _nColumns);
+			if (_pItems[nIndex].bInteger == false ) {
+				str = _pItems[nIndex].data.szValue;
+			}
+			return(str);
+		}
+		
 		
 		void SetInt(int nIndex, int nValue)
 		{
@@ -130,6 +145,19 @@ class DataRow {
 			ASSERT(_pItems != NULL);
 			_pItems[nIndex].bInteger = true;
 			_pItems[nIndex].data.nValue = nValue;
+		}
+		
+		
+		void SetStr(int nIndex, char *szValue)
+		{
+			int len;
+			ASSERT(szValue != NULL);
+			ASSERT(nIndex >= 0 && nIndex < _nColumns);
+			ASSERT(_pItems != NULL);
+			_pItems[nIndex].bInteger = false;
+			len = strlen(szValue);
+			_pItems[nIndex].data.szValue = (char *) malloc(len + 1);
+			strcpy(_pItems[nIndex].data.szValue, szValue);
 		}
 		
 		int AddColumn(char *szName)
@@ -168,11 +196,15 @@ class DataList
 		void AddRow();
 		void AddColumn(char *szName);
 		void AddData(int nIndex, int nValue);
+		void AddData(int nIndex, char *szValue);
 		void Complete();
+		
+		int GetRowCount() { return (_nRowCount); }
 		
 		bool NextRow();
 		int GetInt(char *szName);
 		int GetInt(int nIndex);
+		char *GetStr(int nIndex);
 		
 	protected:
 		

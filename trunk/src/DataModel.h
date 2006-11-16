@@ -48,7 +48,13 @@ class DataModel : public DpLock
 		int InsertMessage(int nUserID);
 		void InsertBodyLine(int nMsgID, int lineno, char *szLine);
 		void InsertOutgoing(int nMsgID, char *szFrom, char *szRemote);
-
+		void DeleteMessage(int nMsgID);
+		DataList * GetMessageList(int nUserID, int nMax);
+		int GetMessageLength(int nMsgID);
+		DataList * GetMessageBody(int nMsgID);
+		void UpdateMessageSize(int nMsgID, int nSize);
+	
+		void ConvertPop3();
 		
 	protected:
 		
