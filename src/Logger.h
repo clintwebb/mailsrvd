@@ -28,8 +28,12 @@ class Logger : public DpLogger
 {
 	private:
 		static DpLock _lock;
-		char *_szName;
-		int _nID;
+		static FILE  *_fp;
+		static int    _nLength;
+		
+		char         *_szName;
+		int           _nID;
+		char		 *_szBuffer;
 		
 	public:
 		Logger(); 

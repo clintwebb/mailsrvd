@@ -27,7 +27,7 @@ Session::Session()
 	ASSERT(sizeof(int) == sizeof(SOCKET));
 	
 	_log.SetName("Session");
-	_log.Log("Session()");
+// 	_log.Log("Session()");
 	
 	_lock.Lock();
 	_pSocket = NULL;
@@ -41,13 +41,13 @@ Session::Session()
 // CJW: Deconstructor.   Clean up everything before this object is destroyed.
 Session::~Session() 
 {
-	_log.Log("~Session() - Start");
+// 	_log.Log("~Session() - Start");
 	
 	if (GetState() != Done) {
 		_log.Log("~Session() - Setting state to ForceClose.  Currently is %d", GetState());
 		ChangeState(ForceClose);
 	}
-	_log.Log("~Session() - Waiting for thread to exit.");
+// 	_log.Log("~Session() - Waiting for thread to exit.");
 	WaitForThread();
 	
 	ASSERT(_pSocket == NULL);
@@ -57,7 +57,7 @@ Session::~Session()
 		_pSocket = NULL;
 	}
 	
-	_log.Log("~Session() - End");
+// 	_log.Log("~Session() - End");
 }
 
 

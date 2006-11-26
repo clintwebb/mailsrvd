@@ -38,6 +38,8 @@ Server::Server()
 // 		session that is still active also.
 Server::~Server() 
 {
+// 	WaitForThread();
+	
 	_lock.Lock();
 	_log.Log("~Server() - Deleting Sessions");
 	ASSERT((_nItems == 0 && _pList == NULL) || (_nItems > 0 && _pList != NULL));

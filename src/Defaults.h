@@ -38,4 +38,7 @@
 #define BUSY_SOCKET_PAUSE		30
 
 
+#define MAX_LOG_LENGTH			20000000
+
+
 #endif

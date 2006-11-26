@@ -138,7 +138,7 @@ int DataModel::GetDomainID(char *szDomain)
 {
 	DpMySqlDB *pResult;
 	char *vDomain;
-	int nDomainID;
+	int nDomainID=0;
 	
 	ASSERT(szDomain != NULL);
 	

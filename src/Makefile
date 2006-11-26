@@ -53,7 +53,7 @@ Main.o: main.cpp $(H_Defaults) $(H_Logger) $(H_Server) $(H_PopServer) $(H_SmtpSe
 PopServer.o: PopServer.cpp $(H_Server) $(H_PopSession)
 	g++ -Wall -c -o $@ PopServer.cpp
 
-Logger.o: Logger.cpp $(H_Logger)
+Logger.o: Logger.cpp $(H_Logger) $(H_Defaults)
 	g++ -Wall -c -o $@ Logger.cpp
 
 Server.o: Server.cpp $(H_Server)
