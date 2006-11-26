@@ -388,7 +388,7 @@ void Message::ProcessRCPT(char *ptr, int len)
 		nDomainID = _pData->GetDomainID(domain);
 		_log.Log("DomainID: %d", nDomainID);
 		
-		if (nDomainID == 0) {
+		if (nDomainID <= 0) {
 			if (_Data.auth.bAuthenticated == false) {
 				_Qout.Print("450 Mailbox unavaliable.  No relay.\r\n");
 			}
