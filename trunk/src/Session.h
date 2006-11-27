@@ -40,7 +40,6 @@ enum State_e {
 class Session : public DpThreadObject 
 {
 	private:
-		DpLock       _lock;
 		DpSocket    *_pSocket;
 		enum State_e _SessionState;
 		int          _nIdleCount;
@@ -58,20 +57,20 @@ class Session : public DpThreadObject
 		bool IsDone(void)
 		{
 			bool b;
-			_lock.Lock();
+			Lock();
 			if (_SessionState == Done)	{ b = true; }
 			else 						{ b = false; }
-			_lock.Unlock();
+			Unlock();
 	
 			return (b);
 		}
 
 		virtual void AttachData(DataModel *pData) {
 		    ASSERT(pData != NULL);
-		    _lock.Lock();
+		    Lock();
 			ASSERT(_pData == NULL);
 			_pData = pData;
-			_lock.Unlock();
+			Unlock();
 		}
 
 		
@@ -90,17 +89,17 @@ class Session : public DpThreadObject
 		
 		void ChangeState(State_e state)
 		{
-			_lock.Lock();
+			Lock();
 			_SessionState = state;
-			_lock.Unlock();
+			Unlock();
 		}
 		
 		State_e GetState(void)
 		{
 			State_e e;
-			_lock.Lock();
+			Lock();
 			e = _SessionState;
-			_lock.Unlock();
+			Unlock();
 			
 			return(e);
 		}

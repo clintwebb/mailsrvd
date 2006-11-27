@@ -28,11 +28,6 @@
 
 class Server : public DpServerInterface 
 {
-	private:
-		DpLock _lock;
-		int _nItems;
-		Session **_pList;
-		
 	protected:
 		Logger _log;
 		DataModel *_pData;
@@ -46,15 +41,9 @@ class Server : public DpServerInterface
 		
 	protected:
 		virtual void OnAccept(SOCKET nSocket) = 0;
-		virtual void AddSession(Session *ptr);
+		virtual bool OnObjectDelete(DpThreadObject *pObject);
 		
-		int ActiveSessions() { 
-			int n;
-			_lock.Lock();
-			n = _nItems;
-			_lock.Unlock();
-			return(n);
-		}
+		int ActiveSessions() { return(ItemCount()); }
 		
 	private:
 		

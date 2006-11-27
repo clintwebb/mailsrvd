@@ -46,10 +46,18 @@ void SmtpServer::OnAccept(SOCKET nSocket)
 	ASSERT(_pData != NULL);
 	pMsg->AttachData(_pData);
 	pMsg->Accept(nSocket);
-	AddSession(pMsg);
+	AddObject(pMsg);
 	n = ActiveSessions();
 	s = 1000 + (n * 20);
 	_log.Log("SMTP: Active Sessions:%d, Sleeping:%d", n, s);
 	Sleep(s);
+}
+
+//-----------------------------------------------------------------------------
+// CJW: 
+bool SmtpServer::OnObjectDelete(DpThreadObject *pObject)
+{
+	_log.Log("SmtpServer::OnObjectDelete");
+	return(true);
 }
 
