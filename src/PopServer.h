@@ -29,6 +29,7 @@ class PopServer : public Server
 		
 	protected:
 		virtual void OnAccept(SOCKET nSocket);
+		virtual bool OnObjectDelete(DpThreadObject *pObject);
 		
 	private:
 		

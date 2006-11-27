@@ -43,11 +43,18 @@ void PopServer::OnAccept(SOCKET nSocket)
 	ASSERT(pSession != NULL); 
 	pSession->AttachData(_pData);
 	pSession->Accept(nSocket);
-	AddSession(pSession);
+	AddObject(pSession);
 }
 
 
 
+//-----------------------------------------------------------------------------
+// CJW: 
+bool PopServer::OnObjectDelete(DpThreadObject *pObject)
+{
+	_log.Log("PopServer::OnObjectDelete");
+	return(true);
+}
 
 
 
