@@ -1,0 +1,11 @@
+
+VERSIONS
+
+This file lists all the changes to each version.  It includes the numerical 
+version number that is used within the source code, and the version label 
+(tag), as well as the date of release if it is known.
+
+1.0.0 - November 28, 2006.
+Initial release.  Does not include support yet for sending emails.  It is coded, but not currently working properly, so it isnt 
+activated.  
+

@@ -1,0 +1,29 @@
+# Updated 2006-11-28 by Clint Webb (cjw@hyper-active.com.au)
+
+pkgname=mailsrvd
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Simple mailserver that uses MySQL to store the emails, handles multiple domains easily."
+url="http://hyper-active.com.au/products/mailsrvd"
+#depends=('')
+makedepends=('gcc' 'binutils', 'devplus')
+conflicts=()
+backup=()
+#install=devplus.install
+source=(http://hyper-active.com.au/products/mailsrvd/$pkgname-$pkgver.tar.gz)
+md5sums=(975b95f9c0ef611d84c49bb0e28d54c6)
+
+build() {
+  cd $startdir/src/$pkgname-$pkgver
+  make
+
+  mkdir $startdir/pkg/sbin
+  mkdir $startdir/pkg/etc
+  mkdir $startdir/pkg/etc/rc.d
+
+  cp mailsrvd $startdir/pkg/sbin
+  cp mailsrv.conf $startdir/pkg/etc
+  cp rc/mailsrvd $startdir/pkg/etc/rc.d
+
+}
+
