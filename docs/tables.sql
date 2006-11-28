@@ -43,8 +43,11 @@ CREATE TABLE Messages (
   MessageID   INTEGER UNIQUE AUTO_INCREMENT,
   UserID      INTEGER,
   Incoming    INTEGER,
+  BodySize    INTEGER DEFAULT 0,
   PRIMARY KEY(MessageID)
 );
+
+ALTER Messages ADD COLUMN BodySize INTEGER DEFAULT 0;
 
 
 CREATE TABLE Summaries (
