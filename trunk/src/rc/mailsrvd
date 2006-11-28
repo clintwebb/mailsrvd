@@ -2,46 +2,30 @@
 
 . /etc/rc.conf
 . /etc/rc.d/functions
-. /etc/conf.d/mailsrvd.conf
 
-PIDp=`pidof -o %PPID /usr/bin/mailsrv-pop3`
-PIDs=`pidof -o %PPID /usr/bin/mailsrv-smtp`
-PIDo=`pidof -o %PPID /usr/bin/mailsrv-out`
+PID=`pidof -o %PPID /sbin/mailsrvd`
 
 case "$1" in
   start)
     stat_busy "Starting mailsrvd"
     
-# check that the log directory has been created.
-	if [ "$LOG_DIR" == "" ] ; then
-	  echo /etc/conf.d/mailsrvd.conf seems to have invalid values.  LOG_DIR cannot be blank.
-	  exit
-	fi
-	
-	if [ ! -e "$LOG_DIR" ] ; then
-	  stat_busy " .. Creating log directory"
-	  mkdir $LOG_DIR
-	  chmod 700 $LOG_DIR
-	  stat_done
-	fi
-    
     if [ -z "$PID" ]; then 
-       /usr/bin/svnserve -d $SVNSERVE_ARGS &
+       /sbin/mailsrvd &
     fi
     if [ ! -z "$PID" -o $? -gt 0 ]; then
       stat_fail
     else
-      add_daemon svnserve
+      add_daemon mailsrvd
       stat_done
     fi
     ;;
   stop)
-    stat_busy "Stopping svnserve"
+    stat_busy "Stopping mailsrvd"
     [ ! -z "$PID" ]  && kill $PID &> /dev/null
     if [ $? -gt 0 ]; then
       stat_fail
     else
-      rm_daemon svnserve
+      rm_daemon mailsrvd
       stat_done
     fi
     ;;
@@ -51,5 +35,5 @@ case "$1" in
     $0 start
     ;;
   *)
-    echo "usage: $0 {start|stop|restart|status}"  
+    echo "usage: $0 {start|stop|restart}"  
 esac
