@@ -46,10 +46,12 @@ void SmtpServer::OnAccept(SOCKET nSocket)
 	ASSERT(_pData != NULL);
 	pMsg->AttachData(_pData);
 	pMsg->Accept(nSocket);
+	
 	AddObject(pMsg);
 	n = ActiveSessions();
-	s = 1000 + (n * 20);
-	_log.Log("SMTP: Active Sessions:%d, Sleeping:%d", n, s);
+	s = 10 + (n * 2);
+	if (s > 2000) { s = 2000; }
+	_log.Log("SMTP: Socket:%d, Active Sessions:%d, Sleeping:%d", nSocket, n, s);
 	Sleep(s);
 }
 

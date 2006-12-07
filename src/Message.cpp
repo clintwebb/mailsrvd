@@ -25,7 +25,6 @@
 Message::Message() 
 {	
 	_log.SetName("Message");
-	
 	_log.Log("Message()");
 	
 	_Data.szHelo   = NULL;
@@ -77,6 +76,7 @@ Message::~Message()
 // 		indicates what kind of service this is.
 void Message::OnStart(void) 
 {
+	_log.Log("Sent Initial Responce");
 	_Qout.Print("220 srv02 ESMTP mailsrv\r\n");
 }
 
@@ -92,6 +92,7 @@ void Message::OnCommand(char *line)
 	_log.Log("New Command. (%s)[%d]", line, len);
 				
 	if (len < 4 && len > 0) {
+		_log.Log("Receive unrecognised command. (len=%d)", len);
 		_Qout.Print("500 Command not recognised.\r\n");
 	}
 	else if (len > 0) {
@@ -104,7 +105,10 @@ void Message::OnCommand(char *line)
 		else if (strncasecmp(line, "NOOP", 4) == 0)			{ ProcessNOOP(line, len); }
 		else if (strncasecmp(line, "QUIT", 4) == 0)			{ ProcessQUIT(line, len); }
 		else if (strncasecmp(line, "AUTH LOGIN", 10) == 0)	{ ProcessAUTH(line, len); }
-		else { _Qout.Print("500 Command not recognised.\r\n"); }
+		else { 
+			_log.Log("Receive unrecognised command. (len=%d)", len);
+			_Qout.Print("500 Command not recognised.\r\n"); 
+		}
 	}
 }
 
@@ -224,9 +228,11 @@ void Message::ProcessHELO(char *ptr, int len)
 	
 	_log.Log("HELO received.");
 	if (len < 6) {
+		_log.Log("Sending 501, Invalid Parameter");
 		_Qout.Print("501 Invalid Parameter\r\n");
 	}
 	else if (_Data.szHelo != NULL) {
+		_log.Log("Sending 503, Bad sequence of commands");
 		_Qout.Print("503 Bad sequence of commands.\r\n");
 	}
 	else {
@@ -250,9 +256,11 @@ void Message::ProcessEHLO(char *ptr, int len)
 	
 	_log.Log("EHLO received.");
 	if (len < 6) {
+		_log.Log("Sending 501, Invalid Parameter");
 		_Qout.Print("501 Invalid Parameter\r\n");
 	}
 	else if (_Data.szHelo != NULL) {
+		_log.Log("Sending 503, Bad sequence of commands");
 		_Qout.Print("503 Bad sequence of commands.\r\n");
 	}
 	else {
@@ -262,6 +270,7 @@ void Message::ProcessEHLO(char *ptr, int len)
 		strcpy(_Data.szHelo , &ptr[5]);
 		_log.Log("EHLO: (%s)", _Data.szHelo);
 		_Qout.Print("250-mail.hyper-active.com.au\r\n250 AUTH LOGIN\r\n");
+		_log.Log("Sending 250, AUTH LOGIN");
 	}
 }
 

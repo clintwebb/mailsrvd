@@ -419,16 +419,28 @@ class theApp : public DpMain
 		// When this function exits, the main thread will be closed down.
 		void OnShutdown(void)
 		{
-			Logger log;
 			int i;
 			
+			ASSERT(_pLogger != NULL);
+			
+			_pLogger->Log("Shutdown Initiated.");
+			
+// 			printf("OnShutdown()\n");
+			ASSERT((_pServers == NULL || _nServers == 0) || (_pServers != NULL && _nServers > 0));
 			if (_pServers != NULL) {
-				for(i=0; _pServers[i] != NULL; i++) {
+				ASSERT(_nServers > 0);
+// 				printf("OnShutdown() - %d servers to delete.\n", _nServers);
+				for(i=0; i < _nServers; i++) {
+// 					printf("OnShutdown() - deleting pServer[%d]\n", i);
 					delete _pServers[i];
 					_pServers[i] = NULL;
 				}
+				
+				free(_pServers);
 				_pServers = NULL;
+				_nServers = 0;
 			}
+// 			printf("OnShutdown() - Passed the deletion of Servers\n");
 			
 			if (_pIni != NULL) {
 				_pLogger->Log("Deleting INI object.");
@@ -437,6 +449,7 @@ class theApp : public DpMain
 			}
 			
 			if (_pData != NULL) {
+				_pLogger->Log("Deleting Database connection.");
 				delete _pData;
 				_pData = NULL;
 			}

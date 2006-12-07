@@ -24,12 +24,11 @@
 #include <DpLock.h>
 
 
-class Logger : public DpLogger
+class Logger 
 {
 	private:
 		static DpLock _lock;
-		static FILE  *_fp;
-		static int    _nLength;
+		static DpLogger *_pLogger;
 		
 		char         *_szName;
 		int           _nID;
@@ -40,7 +39,8 @@ class Logger : public DpLogger
 		virtual ~Logger();
 		
 		void Init();
-		void Log(char *text, ...);
+		virtual void Log(char *text, ...);
+		virtual void LogStr(char *text);
 		void SetName(const char *name);
 		void SetID(int nID);
 		

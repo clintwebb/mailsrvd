@@ -14,56 +14,62 @@
 //-----------------------------------------------------------------------------
 
 
-#include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdarg.h>
 #include "Logger.h"
 #include "Defaults.h"
 
 //-----------------------------------------------------------------------------
 DpLock Logger::_lock;
-FILE *Logger::_fp = NULL;
-int Logger::_nLength = 0;
+DpLogger *Logger::_pLogger = NULL;
 
 //-----------------------------------------------------------------------------
 Logger::Logger() 
 {	
-	_lock.Lock();
 	_szName = "mailsrvd";
 	_nID = 0;
 	_szBuffer = (char *) malloc(32767);
 	ASSERT(_szBuffer != NULL);
-	_lock.Unlock();
 }
 		
 //-----------------------------------------------------------------------------
 Logger::~Logger() 
 {
-	_lock.Lock();
 	ASSERT(_szBuffer != NULL);
 	if (_szBuffer != NULL) {
 		free(_szBuffer);
 		_szBuffer = NULL;
 	}
-	_lock.Unlock();
 }
 
 
 void Logger::Init()
 {
 	_lock.Lock();
-	unlink("/var/log/mailsrvd.4");
-	rename("/var/log/mailsrvd.3", "/var/log/mailsrvd.4");
-	rename("/var/log/mailsrvd.2", "/var/log/mailsrvd.3");
-	rename("/var/log/mailsrvd.1", "/var/log/mailsrvd.2");
-	rename("/var/log/mailsrvd",   "/var/log/mailsrvd.1");
+	ASSERT(_pLogger == NULL);
+	_pLogger = new DpLogger;
+	ASSERT(_pLogger != NULL);
 	
-	_fp = fopen("/var/log/mailsrvd", "a");
-	ASSERT(_fp);
-	_nLength = 0;
+	_pLogger->Init("/var/log/mailsrvd", 4);
+	_pLogger->SetTimestamp();
 	_lock.Unlock();
 }
 
+
+//-----------------------------------------------------------------------------
+// CJW: Log a string.  Since we are getting only a string of text, and we dont 
+// 		have to parse it, it should be a bit quicker (and less dangerous).
+void Logger::LogStr(char *text)
+{
+	ASSERT(text != NULL);
+	ASSERT(_szName != NULL);
+	
+	_lock.Lock();
+	ASSERT(_pLogger != NULL);
+	_pLogger->Log("%s(%d): %s", _szName, _nID, _szBuffer);
+	_lock.Unlock();
+}
 
 
 //-----------------------------------------------------------------------------
@@ -72,27 +78,12 @@ void Logger::Log(char *text, ...)
 	va_list ap;
 
 	ASSERT(text != NULL);
-	ASSERT(_szName != NULL);
 
 	va_start(ap, text);
 	vsprintf(_szBuffer, text, ap);
 	va_end(ap);
 		
-	_lock.Lock();
-	ASSERT(_fp != NULL && _nLength >= 0);
-	_nLength += fprintf(_fp, "%s(%d): %s\n", _szName, _nID, _szBuffer);
-	fflush(_fp);
-	
-	ASSERT(_nLength > 0);
-	if (_nLength >= MAX_LOG_LENGTH) {
-		fclose(_fp);
-		_fp = NULL;
-	
-		Init();
-		ASSERT(_nLength == 0);
-	}
-	
-	_lock.Unlock();
+	LogStr(_szBuffer);
 }
 
 
@@ -120,8 +111,8 @@ void Logger::SetID(int nID)
 void Logger::Close(void)
 {
 	_lock.Lock();
-	ASSERT(_fp != NULL);
-	fclose(_fp);
-	_fp = NULL;
+	ASSERT(_pLogger != NULL);
+	delete _pLogger;
+	_pLogger = NULL;
 	_lock.Unlock();	
 }
