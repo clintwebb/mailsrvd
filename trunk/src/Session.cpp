@@ -18,16 +18,33 @@
 
 #include "Session.h"
 
-#define PACKET_SIZE		3000
-// #define THREAD_CYCLE	50
+
+//-----------------------------------------------------------------------------
+int Session::_nNextSessionID = 1;
+DpLock Session::_BigLock;
+
 
 //-----------------------------------------------------------------------------
 Session::Session() 
 {	
+	int nID;
+	
 	ASSERT(sizeof(int) == sizeof(SOCKET));
 	
 	_log.SetName("Session");
-// 	_log.Log("Session()");
+	
+	_BigLock.Lock();
+	nID = _nNextSessionID;
+	_nNextSessionID++;
+	if (_nNextSessionID > MAX_SESSION_ID) { 
+		_nNextSessionID = 1; 
+		_log.Log("SessionID rotation");
+	}
+	
+	_BigLock.Unlock();
+	
+	_log.SetID(nID);
+ 	_log.Log("Session() - ID:%d", nID);
 	
 	Lock();
 	_pSocket = NULL;
@@ -77,8 +94,7 @@ void Session::Accept(SOCKET nSocket)
 	
 	ASSERT(GetState() == Starting);
 	
-	_log.SetID(nSocket);
-	_log.Log("New Connection Received.");
+	_log.Log("New Connection Received. Socket:%d", nSocket);
 	
 	ASSERT(_pSocket == NULL);
 	_pSocket = new DpSocket;
@@ -94,9 +110,11 @@ void Session::Accept(SOCKET nSocket)
 void Session::OnThreadRun(void)
 {
 	char *ptr;
+	
+	ASSERT(GetState() == Starting);
 	ChangeState(Started);
 	
-	_log.Log("Ready");
+	_log.Log("OnThreadRun - Ready");
 	
 	ASSERT(GetState() >= Started);
 	
@@ -119,6 +137,7 @@ void Session::OnThreadRun(void)
 				// The connection has just started.  We need to send an initial message to the client.  We need to call this function in an Unlocked state so that this function can take some time if it wants.  It may need to establish a connection to something.  If this gets held up, the parent object could get paused when checking to see if this object is done.  All other functions should process quickly enough where this doesnt matter.
 				OnStart();
 				ChangeState(Waiting);
+				OnBusy();
 				break;
 			
 			case Waiting:
@@ -150,7 +169,7 @@ void Session::OnThreadRun(void)
 				// saved information to the database, we should delete it.  
 				// Additionally, if the socket object hasnt actually been 
 				// destroyed, then we should delete it now.
-				
+				_log.Log("Forcing Socket Close");
 				if (_pSocket != NULL) {
 					delete _pSocket;
 					_pSocket = NULL;
@@ -188,6 +207,8 @@ void Session::OnThreadRun(void)
 				break;
 		}
 	}
+	
+	_log.Log("OnThreadRun - Done");
 }
 
 
@@ -201,6 +222,7 @@ void Session::OnIdle(void)
 	_nIdleCount += 50;
 	if (_nIdleCount >= IDLE_LIMIT) {
 		ChangeState(Close);
+		_log.Log("OnIdle() - Idle limit exceeded.  Closing socket");
 	}
 	else {
 		Sleep(50);
@@ -222,12 +244,11 @@ void Session::OnBusy(void)
 // 		if we actually got data from the socket.
 void Session::ReceiveData(void)
 {
-	char tmp[PACKET_SIZE];
 	int len;
 	
 	ASSERT(_pSocket != NULL);
 	
-	len = _pSocket->Receive(tmp, PACKET_SIZE);
+	len = _pSocket->Receive(_pBuffer, PACKET_SIZE);
 	if (len < 0) {
 		ChangeState(ForceClose);
 		delete _pSocket;
@@ -235,7 +256,7 @@ void Session::ReceiveData(void)
 		_log.Log("Connection closed while Receiving.");
 	}
 	else if (len > 0) {
-		_Qin.Add(tmp, len);
+		_Qin.Add(_pBuffer, len);
 	}
 }
 
@@ -251,6 +272,10 @@ void Session::SendData(void)
 	
 	len = _Qout.Length();
 	if (len > 0) {
+	
+		// for performance, we dont want to pull out of the buffer megs of data only to have to put it all back again.  So we will pull out a large enough chunk and then send that.  Since we will sleep for a bit when we hit the wall, but otherwise keep looping, this should be ok.
+		if (len > MAX_PACKET_SEND) { len = MAX_PACKET_SEND; }
+	
 		ptr = _Qout.Pop(len);
 		ASSERT(ptr != NULL);
 		sent = _pSocket->Send(ptr, len);

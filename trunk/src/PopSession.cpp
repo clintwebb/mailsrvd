@@ -72,6 +72,7 @@ PopSession::~PopSession()
 void PopSession::OnStart(void) 
 {
 	_Qout.Print("+OK POP3 server ready\r\n");
+	_log.Log("OnStart() - Sending OK command");
 }
 
 //-----------------------------------------------------------------------------

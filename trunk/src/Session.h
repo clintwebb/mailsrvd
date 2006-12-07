@@ -43,6 +43,9 @@ class Session : public DpThreadObject
 		DpSocket    *_pSocket;
 		enum State_e _SessionState;
 		int          _nIdleCount;
+		char 		 _pBuffer[PACKET_SIZE + 1];
+		static int   _nNextSessionID;
+		static DpLock _BigLock;
 		
 	protected:
 		DataModel   *_pData;
