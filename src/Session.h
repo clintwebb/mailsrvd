@@ -90,22 +90,9 @@ class Session : public DpThreadObject
 		virtual void OnData(char *line)		= 0;
 		virtual void OnClose(void)			= 0;
 		
-		void ChangeState(State_e state)
-		{
-			Lock();
-			_SessionState = state;
-			Unlock();
-		}
+		void ChangeState(State_e state);
+		State_e GetState(void);
 		
-		State_e GetState(void)
-		{
-			State_e e;
-			Lock();
-			e = _SessionState;
-			Unlock();
-			
-			return(e);
-		}
 
 		
 		

@@ -40,7 +40,6 @@ Session::Session()
 		_nNextSessionID = 1; 
 		_log.Log("SessionID rotation");
 	}
-	
 	_BigLock.Unlock();
 	
 	_log.SetID(nID);
@@ -96,12 +95,14 @@ void Session::Accept(SOCKET nSocket)
 	
 	_log.Log("New Connection Received. Socket:%d", nSocket);
 	
+	Lock();
 	ASSERT(_pSocket == NULL);
 	_pSocket = new DpSocket;
 	ASSERT(_pSocket != NULL);
 	_pSocket->Accept(nSocket);
 	
 	Start();
+	Unlock();
 }
 
 
@@ -138,6 +139,7 @@ void Session::OnThreadRun(void)
 				OnStart();
 				ChangeState(Waiting);
 				OnBusy();
+				_log.Log("OnThreadRun - Set to Waiting Mode");
 				break;
 			
 			case Waiting:
@@ -187,7 +189,6 @@ void Session::OnThreadRun(void)
 					
 					delete _pSocket;
 					_pSocket = NULL;
-					
 					
 					ChangeState(Done);
 					_log.Log("Session Closed");
@@ -321,3 +322,27 @@ bool Session::Connect(char *ip, int port)
 	
 	return(bConnected);
 }
+
+
+//-----------------------------------------------------------------------------
+// CJW: Change the state (safely).
+void Session::ChangeState(State_e state)
+{
+	Lock();
+	_SessionState = state;
+	Unlock();
+}
+
+
+//-----------------------------------------------------------------------------
+// CJW: 
+State_e Session::GetState(void)
+{
+	State_e e;
+	Lock();
+	e = _SessionState;
+	Unlock();
+	
+	return(e);
+}
+

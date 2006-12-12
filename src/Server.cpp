@@ -73,3 +73,12 @@ bool Server::OnObjectDelete(DpThreadObject *pObject)
 	return(true);
 }
 
+
+//-----------------------------------------------------------------------------
+// CJW: If the server object attempts to accept an incoming socket, but fails, 
+// 		we will display a log.  Mostly this is in place to try and resolve 
+// 		handle leaks.
+void Server::OnAcceptFail(void)
+{
+// 	_log.Log("Server::OnAcceptFail");
+}
