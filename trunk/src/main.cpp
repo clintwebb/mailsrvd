@@ -57,6 +57,12 @@
 #endif
 
 
+#ifndef DEVPLUS_VERSION
+#error For performance and stability, DevPlus v0.2.15 or higher is required.
+#endif
+#if (DEVPLUS_VERSION < 215) 
+#error For performance and stability, DevPlus v0.2.15 or higher is required.
+#endif
 
 
 class theApp : public DpMain

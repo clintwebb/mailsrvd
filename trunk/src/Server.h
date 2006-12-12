@@ -42,6 +42,7 @@ class Server : public DpServerInterface
 	protected:
 		virtual void OnAccept(SOCKET nSocket) = 0;
 		virtual bool OnObjectDelete(DpThreadObject *pObject);
+		virtual void OnAcceptFail(void);
 		
 		int ActiveSessions() { return(ItemCount()); }
 		

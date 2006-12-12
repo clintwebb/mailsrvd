@@ -316,12 +316,15 @@ void Message::ProcessMAIL(char *ptr, int len)
 	
 	_log.Log("MAIL received.");
 	if (len < 11) {
+		_log.Log("ProcessMAIL() -> 501 Invalid Parameter");
 		_Qout.Print("501 Invalid Parameter\r\n");
 	}
 	else if (_Data.szHelo == NULL) {
+		_log.Log("ProcessMAIL() -> 503 Bad sequence of commands.");
 		_Qout.Print("503 Bad sequence of commands.\r\n");
 	}
 	else if (_Data.szFrom != NULL) {
+		_log.Log("ProcessMAIL() -> 503 Bad sequence of commands.");
 		_Qout.Print("503 Bad sequence of commands.\r\n");
 	}
 	else {
@@ -356,9 +359,11 @@ void Message::ProcessRCPT(char *ptr, int len)
 	
 	_log.Log("RCPT received.");
 	if (len < 9) {
+		_log.Log("ProcessRCPT() -> 501 Invalid Parameter.");
 		_Qout.Print("501 Invalid Parameter\r\n");
 	}
 	else if (_Data.szFrom == NULL) {
+		_log.Log("ProcessRCPT() -> 503 Bad sequence of commands.");
 		_Qout.Print("503 Bad sequence of commands.\r\n");
 	}
 	else {
@@ -399,6 +404,7 @@ void Message::ProcessRCPT(char *ptr, int len)
 		
 		if (nDomainID <= 0) {
 			if (_Data.auth.bAuthenticated == false) {
+				_log.Log("ProcessRCPT() -> 450 Mailbox unavailable.");
 				_Qout.Print("450 Mailbox unavaliable.  No relay.\r\n");
 			}
 			else {
@@ -417,6 +423,7 @@ void Message::ProcessRCPT(char *ptr, int len)
 					_Qout.Print("250 OK\r\n");
 				}
 				else {
+					_log.Log("ProcessRCPT -> 554 Transaction failed");
 					_Qout.Print("554 Transaction failed.\r\n");
 				}
 			}
@@ -427,7 +434,9 @@ void Message::ProcessRCPT(char *ptr, int len)
 			
 			nReject   = _pData->GetDomainReject(nDomainID);
 			ASSERT(nReject == 0 || nReject == 1);
-			_log.Log("Reject: %d", nReject);
+			if (nReject == 1) {
+				_log.Log("Rejecting Message");
+			}
 			
 			
 			ASSERT(_pData != NULL);
@@ -458,12 +467,14 @@ void Message::ProcessRCPT(char *ptr, int len)
 			ASSERT(_Data.nUsers <= MAX_LOCAL_ADDRESSES);
 			if (bFound == false) {
 				ASSERT(nUserID == 0);
+				_log.Log("ProcessRCPT -> 450 Mailbox doesnt exist");
 				_Qout.Print("450 Mailbox does not exist.\r\n");
 			}
 			else {
 				ASSERT(bFound == true);
 				ASSERT(nUserID > 0);
 				if (_Data.nUsers == MAX_LOCAL_ADDRESSES) {
+					_log.Log("ProcessRCPT -> 554 Transaction failed.");
 					_Qout.Print("554 Transaction failed.\r\n");
 				}
 				else {
@@ -515,7 +526,7 @@ void Message::ProcessDATA(char *ptr, int len)
 	ASSERT(_Data.auth.bAuthenticating == false);
 	
 	if (_Data.nUsers == 0 && _Data.nRemote == 0) {
-		_log.Log("--> 503");
+		_log.Log("ProcessDATA --> 503");
 		_Qout.Print("503 No recipients.\r\n");
 	}
 	else {
@@ -533,6 +544,7 @@ void Message::ProcessRSET(char *ptr, int len)
 	ASSERT(len >= 4);
 	ASSERT(GetState() == Waiting);
 	
+	_log.Log("Resetting session, by user request");
 	_Qout.Print("250 OK\r\n");
 	Reset();
 }
@@ -546,6 +558,7 @@ void Message::ProcessNOOP(char *ptr, int len)
 	ASSERT(len >= 4);
 	ASSERT(GetState() == Waiting);
 	
+	_log.Log("NOOP - We should count how many of these we get, and close the connection when it gets too many");
 	_Qout.Print("250 OK\r\n");
 }
 
@@ -559,6 +572,7 @@ void Message::ProcessQUIT(char *ptr, int len)
 	ASSERT(ptr != NULL);
 	ASSERT(len >= 4);
 	
+	_log.Log("Client has requestion to QUIT");
 	ChangeState(Close);
 }
 
@@ -574,6 +588,8 @@ void Message::SaveMessage(void)
 	
 	ASSERT(_Data.szBodies != NULL  && _Data.nBodies > 0);
 	ASSERT(_pData != NULL);
+	
+	_log.Log("Saving Message");
 	
 	ASSERT(_Data.nUsers > 0 || _Data.nRemote > 0);
 	for (i=0; i<_Data.nUsers; i++) {

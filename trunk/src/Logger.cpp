@@ -91,9 +91,7 @@ void Logger::Log(char *text, ...)
 void Logger::SetName(const char *name)
 {
 	ASSERT(name != NULL);
-	_lock.Lock();
 	_szName = (char *) name;
-	_lock.Unlock();
 }
 
 
@@ -101,9 +99,7 @@ void Logger::SetName(const char *name)
 void Logger::SetID(int nID)
 {
 	ASSERT(nID > 0);
-	_lock.Lock();
 	_nID = nID;
-	_lock.Unlock();
 }
 
 
