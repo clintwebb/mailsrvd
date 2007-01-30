@@ -188,9 +188,13 @@ void Message::OnData(char *line)
 		}
 					
 		if (line[0] == '.' && len == 1) {
-			ASSERT(_Data.szBodies != NULL && _Data.nBodies > 0);
-						
-			SaveMessage();
+ 			if (_Data.nBodies > 0) {
+ 				ASSERT(_Data.szBodies != NULL);
+	 			SaveMessage();
+	 		}
+	 		else {
+				_log.Log("Body was empty, not saving message.");
+			}
 			ChangeState(Waiting);
 			free(line);
 						
