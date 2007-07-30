@@ -1,0 +1,35 @@
+MailServer
+
+This is an open-source implementation of our mail-server which includes smtp receiver and delivery as well as pop3.   In addition it includes the reverse delivery extentions we have developed to assist with avoiding unwanted spam.
+
+About the extentions.
+
+One of the biggest problems with spam today, is that it is very easy to use fake addresses and hosts.  There are several initiatives out there that try to ensure that when an email says it is coming from @test.com it really is coming from @test.com.  The problem with these initiatives is that it requires a significant amount of extra administrative effort to maintain.
+
+The extentions that we propose and include in this mail server suite, does not require any additional administrative effort.  It is simple by design.  It is backward compatible with existing smtp protocols.  But if the email sender and receiver have the extentions then the sender will connect to the server as usual, but instead of doing a DATA command, it will do a SOURCE command which includes a 32 char identifier.   The server would then store that email as partially received.  Every so many seconds it would go thru its database for a list of hosts it needs to connect to.  It would then get a list messages it needs to get from each server.   It would then connect to the sending server using the mx record for the domain.  It will do the usual HELO stuff, but with then do a GET command for each 32char identifier.  The GET command will work identicle to the DATA that would normally be received.   
+
+This method does not stop spam, but it is a method that can help reduce the amount of faked emails that are received.  The administrator of the mail server can choose to ignore emails that have not been identified.  But most likely will check the emails more rigorously againsts spam filters.  
+
+If this method was employed by all mail servers, then all emails would have to originate from a server that can provide the contents of the email when the callback occurs.  
+
+Database Choice
+---------------
+
+Originally this software was written to use sqlite as a database to store the email and configuration.  The reason for this choice was that it is basically an embedded database that has no configuration issues.  I am still partial to this solution, however, the issue of scalability comes into the equation and we are forced to look at a more scalable database solution (which is infinately more flexible than putting all the data in files of some sort).
+
+With Mysql, we can setup replication to easily so that we can have a backup server situation.  Additionally, we came against a few problems with sqlite, such as:
+  1.  Bit of a performance problem when trying to retreive more than 50 unread emails at a time.  
+  2.  Unable to provide a simple way of replicating the database to a secondary server.
+  3.  Invalid database handles from time to time.
+  
+----
+Problems discovered during implementation.
+
+ 1.  If there are a large number of emails pending to be delivered, when we start up the daemon, the shear number of connections received causes the processing threads to be delayed while all the connections are received.  The connections that have been received, would often time-out and close before it can be processed.  After a short time, the message is tried again, but we still are not able to process all the threads.  Therefore, we need a slight delay after accepting a message before we accept another one.  This delay gives the processing thread a chance to at least acknowledge the connection.  Adding a 500ms delay after accepting a connection has worked.  A smaller delay might work too.   At 500ms, we are effectively limiting our total number of connection we can receive to 120 a minute.  Thats really not good enough, so we should really come up with a better method than that.   Perhaps we should try with a smaller delay.   Even 0ms delay might be enough to let the thread start processing.
+ 
+ 
+ 
+ 
+ 
+ 
+ 
